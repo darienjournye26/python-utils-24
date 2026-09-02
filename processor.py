@@ -1,41 +1,48 @@
-def validate_input(value):
-    """Validate that the input is a positive integer within range."""
-    if not isinstance(value, int):
-        return False, "Input must be an integer"
-    if value <= 0:
-        return False, "Input must be positive"
-    if value > 1000:
-        return False, "Input too large"
-    return True, None
+from typing import Any, Dict, List, Optional
 
-def process_data(data_list):
-    """Process list of data with validation in the main loop."""
-    results = []
-    errors = []
-    # Main processing loop with input validation
-    for idx, item in enumerate(data_list):
-        is_valid, error_msg = validate_input(item)
-        if not is_valid:
-            errors.append(f"Item at index {idx}: {error_msg}")
-            continue
-        # Perform processing on valid input
-        processed_value = item * 2 + 10
-        # Additional computation for categorization
-        category = "small" if processed_value < 100 else "large"
-        results.append({
-            'original': item,
-            'processed': processed_value,
-            'category': category,
-            'index': idx
-        })
-    return results, errors
+def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '.') -> Dict[str, Any]:
+    """Flatten a nested dictionary into a flat dictionary.
+    Useful for general data handling in processing pipelines.
+    """
+    items = []
+    for k, v in data.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        elif isinstance(v, list):
+            for i, item in enumerate(v):
+                if isinstance(item, dict):
+                    items.extend(flatten_dict(item, f"{new_key}{sep}{i}", sep=sep).items())
+                else:
+                    items.append((f"{new_key}{sep}{i}", item))
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-if __name__ == "__main__":
-    test_data = [5, -3, 100, 1500, 42, "hello", 0, 999, 25]
-    processed_results, error_list = process_data(test_data)
-    print("Successfully processed items:")
-    for res in processed_results:
-        print(f"  {res}")
-    print("\nValidation errors:")
-    for err in error_list:
-        print(f"  {err}")
+def safe_get_nested(data: Dict[str, Any], path: str, default: Any = None, sep: str = '.') -> Any:
+    """Safely retrieve a value from nested dictionary using dot-separated path.
+    Handles missing keys by returning default.
+    """
+    keys = path.split(sep)
+    current = data
+    for key in keys:
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        else:
+            return default
+    return current
+
+def filter_and_transform(data: List[Dict[str, Any]], filter_key: str, filter_value: Any, transform_key: Optional[str] = None) -> List[Any]:
+    """Filter list of dictionaries and optionally extract specific keys.
+    Practical for general data handling tasks.
+    """
+    filtered = [item for item in data if item.get(filter_key) == filter_value]
+    if transform_key:
+        return [item.get(transform_key) for item in filtered]
+    return filtered
+
+def batch_process(data: List[Any], batch_size: int = 10) -> List[List[Any]]:
+    """Split data into batches for processing.
+    Helps in handling large datasets generally.
+    """
+    return [data[i:i + batch_size] for i in range(0, len(data), batch_size)]
