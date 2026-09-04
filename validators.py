@@ -1,33 +1,29 @@
-import functools
-from typing import Any, Callable, Dict
+class ValidationError(Exception):
+    """Custom exception for input validation failures."""
+    pass
 
-# Cache for repeated validation lookups
-_validation_cache: Dict[tuple, bool] = {}
+def validate_payload(data: dict, required_keys: list):
+    """Ensures all required keys are present and values are non-empty."""
+    if not isinstance(data, dict):
+        raise ValidationError("Payload must be a dictionary")
 
-def cached_validator(func: Callable) -> Callable:
-    """Decorator to memoize validator results for identical inputs."""
-    @functools.wraps(func)
-    def wrapper(data: Any, *args: Any) -> bool:
-        key = (func.__name__, str(data), str(args))
-        if key not in _validation_cache:
-            _validation_cache[key] = func(data, *args)
-        return _validation_cache[key]
-    return wrapper
+    for key in required_keys:
+        if key not in data:
+            raise ValidationError(f"Missing required field: {key}")
+        if data[key] is None or data[key] == "":
+            raise ValidationError(f"Field {key} cannot be empty")
 
-@cached_validator
-def is_valid_identifier(value: str) -> bool:
-    """Validate string identifier format using local cache."""
-    return isinstance(value, str) and value.isalnum() and len(value) <= 64
+    return True
 
-def clear_validator_cache() -> None:
-    """Reset internal memory storage."""
-    _validation_cache.clear()
-
-class DataValidator:
-    """High-performance validator class for object sets."""
-    def __init__(self, schema: Dict[str, type]):
-        self.schema = schema
-
-    def validate_batch(self, data: Dict[str, Any]) -> bool:
-        """Verify data batch against schema definitions."""
-        return all(isinstance(data.get(k), v) for k, v in self.schema.items())
+def process_stream(items: list, required_keys: list):
+    """Main loop implementation with integrated input validation."""
+    results = []
+    for index, item in enumerate(items):
+        try:
+            validate_payload(item, required_keys)
+            # Mock processing logic
+            results.append(item.get('id'))
+        except ValidationError as e:
+            print(f"Skipping item at index {index}: {e}")
+            continue
+    return results
