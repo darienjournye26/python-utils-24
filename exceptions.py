@@ -1,1 +1,33 @@
-"""Custom exception classes for the python-utils-24 library.\n\nThis module defines a hierarchy of standard exceptions used across\nthe utility functions to provide detailed error context.\n"""\n\nfrom typing import Any, Optional\n\n\nclass PythonUtilsError(Exception):\n    """Base exception class for all errors in python-utils-24."""\n\n    def __init__(self, message: str, payload: Optional[Any] = None) -> None:\n        """Initialize the base exception with a message and optional metadata.\n\n        Args:\n            message: A descriptive error message.\n            payload: Optional arbitrary data associated with the error.\n        """\n        super().__init__(message)\n        self.message: str = message\n        self.payload: Optional[Any] = payload\n\n    def __str__(self) -> str:\n        return f"{self.__class__.__name__}: {self.message}"\n\n\nclass ValidationError(PythonUtilsError):\n    """Raised when input validation or sanitization fails."""\n\n    def __init__(self, message: str, invalid_value: Optional[Any] = None) -> None:\n        """Initialize validation error with the specific faulty value.\n\n        Args:\n            message: Explanation of why validation failed.\n            invalid_value: The value that triggered the validation failure.\n        """\n        super().__init__(message, payload=invalid_value)\n        self.invalid_value: Optional[Any] = invalid_value\n\n\nclass ConfigurationError(PythonUtilsError):\n    """Raised when setup or configuration parameters are invalid or missing."""\n\n\nclass ProcessingError(PythonUtilsError):\n    """Raised when an operation or processing step fails at runtime."""\n
+import functools
+from typing import Callable, Any, Dict
+
+# global cache for exception handling performance
+_EXCEPTION_CACHE: Dict[str, Exception] = {}
+
+class PerformanceBaseException(Exception):
+    """Base exception class with cached stack trace suppression."""
+    pass
+
+def fast_exception(cls: type) -> Callable:
+    """Decorator to optimize exception instantiation by caching common errors."""
+    @functools.wraps(cls)
+    def wrapper(*args: Any, **kwargs: Any) -> Exception:
+        key = f"{cls.__name__}:{args}:{kwargs}"
+        if key not in _EXCEPTION_CACHE:
+            _EXCEPTION_CACHE[key] = cls(*args, **kwargs)
+        return _EXCEPTION_CACHE[key]
+    return wrapper
+
+@fast_exception
+class ConfigurationError(PerformanceBaseException):
+    """Raised when configuration constraints are violated."""
+    pass
+
+@fast_exception
+class ProcessingError(PerformanceBaseException):
+    """Raised during core data processing failures."""
+    pass
+
+def clear_exception_cache() -> None:
+    """Memory management for the exception cache."""
+    _EXCEPTION_CACHE.clear()
