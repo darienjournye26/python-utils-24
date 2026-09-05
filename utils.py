@@ -1,24 +1,30 @@
-from typing import Any, Iterable, Dict, List, Optional
+import time
+from typing import Any, Callable, Dict, Optional, TypeVar, List
 
-def chunk_data(data: Iterable[Any], size: int) -> List[List[Any]]:
-    """Splits an iterable into smaller chunks of a fixed size."""
+T = TypeVar('T')
+
+def retry(attempts: int = 3, delay: float = 1.0) -> Callable[[Callable[..., T]], Callable[..., T]]:
+    """Decorator to retry a function multiple times on failure."""
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        def wrapper(*args: Any, **kwargs: Any) -> T:
+            last_exception: Optional[Exception] = None
+            for _ in range(attempts):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    time.sleep(delay)
+            raise last_exception or RuntimeError("Failed after retries")
+        return wrapper
+    return decorator
+
+def chunk_list(data: List[T], size: int) -> List[List[T]]:
+    """Split a list into smaller chunks of a specified size."""
     if size <= 0:
-        raise ValueError("Chunk size must be a positive integer")
-    
-    items = list(data)
-    return [items[i:i + size] for i in range(0, len(items), size)]
+        raise ValueError("Chunk size must be greater than zero")
+    return [data[i : i + size] for i in range(0, len(data), size)]
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """Flattens a nested dictionary into a single level."""
-    items: List[tuple] = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
-
-def sanitize_input(data: Any, default: Any = None) -> Any:
-    """Returns data if not None, otherwise returns the default value."""
-    return data if data is not None else default
+def format_data(data: Dict[str, Any], prefix: str = "LOG") -> str:
+    """Format dictionary items into a consistent string representation."""
+    items = [f"{k}={v}" for k, v in data.items()]
+    return f"[{prefix}] " + " | ".join(items)
