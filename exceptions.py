@@ -1,33 +1,29 @@
+import time
 import functools
-from typing import Callable, Any, Dict
+import logging
+from typing import Callable, Any, Type, Tuple
 
-# global cache for exception handling performance
-_EXCEPTION_CACHE: Dict[str, Exception] = {}
+logger = logging.getLogger(__name__)
 
-class PerformanceBaseException(Exception):
-    """Base exception class with cached stack trace suppression."""
-    pass
-
-def fast_exception(cls: type) -> Callable:
-    """Decorator to optimize exception instantiation by caching common errors."""
-    @functools.wraps(cls)
-    def wrapper(*args: Any, **kwargs: Any) -> Exception:
-        key = f"{cls.__name__}:{args}:{kwargs}"
-        if key not in _EXCEPTION_CACHE:
-            _EXCEPTION_CACHE[key] = cls(*args, **kwargs)
-        return _EXCEPTION_CACHE[key]
-    return wrapper
-
-@fast_exception
-class ConfigurationError(PerformanceBaseException):
-    """Raised when configuration constraints are violated."""
-    pass
-
-@fast_exception
-class ProcessingError(PerformanceBaseException):
-    """Raised during core data processing failures."""
-    pass
-
-def clear_exception_cache() -> None:
-    """Memory management for the exception cache."""
-    _EXCEPTION_CACHE.clear()
+def retry_network_operation(exceptions: Tuple[Type[Exception], ...] = (Exception,), 
+                           tries: int = 3, 
+                           delay: float = 1.0, 
+                           backoff: float = 2.0):
+    """
+    Decorator for retrying network operations with exponential backoff.
+    """
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            current_tries, current_delay = tries, delay
+            while current_tries > 1:
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    logger.warning(f"{func.__name__} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_tries -= 1
+                    current_delay *= backoff
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
