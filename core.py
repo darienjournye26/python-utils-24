@@ -1,35 +1,41 @@
-from typing import Dict, Any
+import logging
+from logging.handlers import RotatingFileHandler
+import os
+from typing import Optional
 
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = "_") -> Dict[str, Any]:
-    """
-    Recursively flattens a nested dictionary into a single-level dictionary.
+def setup_logger(
+    name: str = "app",
+    log_file: str = "app.log",
+    level: int = logging.INFO,
+    max_bytes: int = 5 * 1024 * 1024,
+    backup_count: int = 3,
+    log_to_console: bool = True,
+) -> logging.Logger:
+    """Configures and returns a logger with rotating file handler."""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-    Keys in the resulting dictionary are concatenated using the specified separator.
-    """
-    items = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+    if logger.handlers:
+        return logger
 
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
-def unflatten_dict(d: Dict[str, Any], sep: str = "_") -> Dict[str, Any]:
-    """
-    Recreates a nested dictionary structure from a flattened dictionary.
+    log_dir = os.path.dirname(log_file)
+    if log_dir:
+        os.makedirs(log_dir, exist_ok=True)
 
-    Assumes the flat dictionary keys were constructed using the specified separator.
-    """
-    result: Dict[str, Any] = {}
-    for flat_key, value in d.items():
-        parts = flat_key.split(sep)
-        current = result
-        for part in parts[:-1]:
-            if part not in current:
-                current[part] = {}
-            current = current[part]
-        current[parts[-1]] = value
-    return result
+    file_handler = RotatingFileHandler(
+        log_file, maxBytes=max_bytes, backupCount=backup_count
+    )
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    if log_to_console:
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    return logger
