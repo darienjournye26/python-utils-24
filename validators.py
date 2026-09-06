@@ -1,29 +1,39 @@
-class ValidationError(Exception):
-    """Custom exception for input validation failures."""
-    pass
+import re
+from typing import Any, Dict, Optional
 
-def validate_payload(data: dict, required_keys: list):
-    """Ensures all required keys are present and values are non-empty."""
+def validate_payload(data: Dict[str, Any]) -> bool:
+    """
+    Validates input schema and data integrity for main loop.
+    Ensures required fields exist and types match requirements.
+    """
+    required_fields = {'task_id': int, 'payload': str}
+    
+    # Validate dictionary structure and keys
     if not isinstance(data, dict):
-        raise ValidationError("Payload must be a dictionary")
-
-    for key in required_keys:
-        if key not in data:
-            raise ValidationError(f"Missing required field: {key}")
-        if data[key] is None or data[key] == "":
-            raise ValidationError(f"Field {key} cannot be empty")
-
+        return False
+        
+    for field, expected_type in required_fields.items():
+        if field not in data or not isinstance(data[field], expected_type):
+            return False
+            
+    # Validate payload format using regex pattern
+    # Ensures alphanumeric content with minimal length constraints
+    if not re.match(r'^[a-zA-Z0-9_\-]{4,64}$', data['payload']):
+        return False
+        
     return True
 
-def process_stream(items: list, required_keys: list):
-    """Main loop implementation with integrated input validation."""
-    results = []
-    for index, item in enumerate(items):
-        try:
-            validate_payload(item, required_keys)
-            # Mock processing logic
-            results.append(item.get('id'))
-        except ValidationError as e:
-            print(f"Skipping item at index {index}: {e}")
-            continue
-    return results
+def sanitize_input(value: str) -> str:
+    """
+    Removes potentially dangerous characters from string input.
+    """
+    return re.sub(r'[^a-zA-Z0-9_\-]', '', value)
+
+def get_validated_int(value: Any, default: int = 0) -> int:
+    """
+    Coerces input to integer with fallback for safety.
+    """
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
