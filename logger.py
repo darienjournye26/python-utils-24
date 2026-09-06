@@ -1,48 +1,38 @@
 import logging
-from logging.handlers import RotatingFileHandler
 import os
+from logging.handlers import RotatingFileHandler
 
-def setup_rotating_logger(
-    name: str = "python-utils",
-    log_file: str = "app.log",
-    level: int = logging.INFO,
-    max_bytes: int = 1024 * 1024 * 10,  # 10 MB
-    backup_count: int = 5
-) -> logging.Logger:
-    """Configure and return a logger with file rotation.
-
-    Uses RotatingFileHandler to prevent log files from growing indefinitely.
+def setup_logger(name: str = "app", log_file: str = "app.log", max_bytes: int = 10485760, backup_count: int = 5) -> logging.Logger:
+    """
+    Sets up a logger with console and rotating file handlers.
     """
     logger = logging.getLogger(name)
-    # Prevent adding handlers multiple times
-    if logger.hasHandlers():
-        return logger
-    logger.setLevel(level)
-    # Create log directory if needed
-    log_dir = os.path.dirname(log_file)
-    if log_dir and not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    # Rotating file handler
-    file_handler = RotatingFileHandler(
-        log_file, maxBytes=max_bytes, backupCount=backup_count
-    )
-    file_handler.setLevel(level)
-    file_format = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-    )
-    file_handler.setFormatter(file_format)
-    logger.addHandler(file_handler)
-    # Add stream handler for console output
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(level)
-    stream_format = logging.Formatter("%(levelname)s: %(message)s")
-    stream_handler.setFormatter(stream_format)
-    logger.addHandler(stream_handler)
-    return logger
+    logger.setLevel(logging.INFO)
 
-# Example of usage (for testing the module)
-if __name__ == "__main__":
-    logger = setup_rotating_logger()
-    logger.info("Logger setup complete with rotation enabled.")
-    logger.warning("This is a test warning message.")
-    logger.error("This is a test error message.")
+    # Prevent adding multiple handlers if the logger is already configured
+    if not logger.handlers:
+        # Unified log format for debugging
+        formatter = logging.Formatter(
+            '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)d] - %(message)s'
+        )
+
+        # Create console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+        # Ensure parent directory for logs exists
+        log_dir = os.path.dirname(log_file)
+        if log_dir and not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+
+        # Create rotating file handler
+        file_handler = RotatingFileHandler(
+            log_file, maxBytes=max_bytes, backupCount=backup_count, encoding='utf-8'
+        )
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    return logger
