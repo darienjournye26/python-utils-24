@@ -1,29 +1,26 @@
-import time
-import functools
-import logging
-from typing import Callable, Any, Type, Tuple
+"""Custom exception classes for python-utils-24 package."""
 
-logger = logging.getLogger(__name__)
+from typing import Optional
 
-def retry_network_operation(exceptions: Tuple[Type[Exception], ...] = (Exception,), 
-                           tries: int = 3, 
-                           delay: float = 1.0, 
-                           backoff: float = 2.0):
-    """
-    Decorator for retrying network operations with exponential backoff.
-    """
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            current_tries, current_delay = tries, delay
-            while current_tries > 1:
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    logger.warning(f"{func.__name__} failed: {e}. Retrying in {current_delay}s...")
-                    time.sleep(current_delay)
-                    current_tries -= 1
-                    current_delay *= backoff
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
+class PythonUtilsError(Exception):
+    """Base exception class for all errors raised by this utility library."""
+    def __init__(self, message: str, original_exception: Optional[Exception] = None) -> None:
+        super().__init__(message)
+        self.message = message
+        self.original_exception = original_exception
+
+class ValidationError(PythonUtilsError):
+    """Raised when an input or parameter validation check fails."""
+    pass
+
+class ConfigurationError(PythonUtilsError):
+    """Raised when application setup or configuration is invalid."""
+    pass
+
+class ProcessingError(PythonUtilsError):
+    """Raised when a background or file processing operation fails."""
+    pass
+
+class ResourceNotFoundError(PythonUtilsError):
+    """Raised when a specified file, directory, or key is not found."""
+    pass
