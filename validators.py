@@ -1,39 +1,36 @@
-import re
-from typing import Any, Dict, Optional
+class ValidationError(Exception):
+    """Custom exception for input validation failures."""
+    pass
 
-def validate_payload(data: Dict[str, Any]) -> bool:
+def validate_input_data(data):
     """
-    Validates input schema and data integrity for main loop.
-    Ensures required fields exist and types match requirements.
+    Validates the structure and types of the input dictionary.
+    Ensures 'id' is integer and 'payload' is non-empty string.
     """
-    required_fields = {'task_id': int, 'payload': str}
-    
-    # Validate dictionary structure and keys
     if not isinstance(data, dict):
-        return False
-        
-    for field, expected_type in required_fields.items():
-        if field not in data or not isinstance(data[field], expected_type):
-            return False
-            
-    # Validate payload format using regex pattern
-    # Ensures alphanumeric content with minimal length constraints
-    if not re.match(r'^[a-zA-Z0-9_\-]{4,64}$', data['payload']):
-        return False
-        
+        raise ValidationError("input must be a dictionary")
+
+    if "id" not in data or not isinstance(data["id"], int):
+        raise ValidationError("missing or invalid integer 'id'")
+
+    if "payload" not in data or not isinstance(data["payload"], str):
+        raise ValidationError("missing or invalid string 'payload'")
+
+    if not data["payload"].strip():
+        raise ValidationError("payload cannot be empty or whitespace")
+
     return True
 
-def sanitize_input(value: str) -> str:
+def process_stream(data_list):
     """
-    Removes potentially dangerous characters from string input.
+    Main processing loop with integrated input validation.
     """
-    return re.sub(r'[^a-zA-Z0-9_\-]', '', value)
-
-def get_validated_int(value: Any, default: int = 0) -> int:
-    """
-    Coerces input to integer with fallback for safety.
-    """
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
+    valid_items = []
+    for entry in data_list:
+        try:
+            if validate_input_data(entry):
+                valid_items.append(entry)
+        except ValidationError as e:
+            print(f"Skipping invalid entry {entry}: {e}")
+            continue
+    return valid_items
