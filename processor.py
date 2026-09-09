@@ -1,34 +1,36 @@
-import time
-import functools
-import logging
+from typing import Any, Dict, List, Optional
 
-# Configure logging for network operations
-logger = logging.getLogger(__name__)
 
-def retry_network_operation(max_attempts=3, backoff_factor=1.0):
-    """Decorator to retry network operations with exponential backoff."""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    attempts += 1
-                    if attempts == max_attempts:
-                        logger.error(f"Final attempt {attempts} failed: {e}")
-                        raise
-                    
-                    sleep_time = backoff_factor * (2 ** (attempts - 1))
-                    logger.warning(f"Attempt {attempts} failed. Retrying in {sleep_time}s...")
-                    time.sleep(sleep_time)
-        return wrapper
-    return decorator
+def clean_nested_dict(data: Dict[str, Any], keys_to_strip: Optional[List[str]] = None) -> Dict[str, Any]:
+    """
+    Recursively removes specified keys from a dictionary and cleans null values.
+    """
+    if keys_to_strip is None:
+        keys_to_strip = []
 
-@retry_network_operation(max_attempts=3, backoff_factor=0.5)
-def fetch_data(url):
-    """Example network operation function."""
-    # Simulation of a network call
-    print(f"Fetching from {url}")
-    raise ConnectionError("Server unreachable")
+    cleaned = {}
+    for key, value in data.items():
+        if key in keys_to_strip:
+            continue
+
+        if isinstance(value, dict):
+            cleaned[key] = clean_nested_dict(value, keys_to_strip)
+        elif isinstance(value, list):
+            cleaned[key] = [
+                clean_nested_dict(i, keys_to_strip) if isinstance(i, dict) else i
+                for i in value
+            ]
+        elif value is not None:
+            cleaned[key] = value
+
+    return cleaned
+
+
+def batch_process(items: List[Any], batch_size: int = 10) -> List[List[Any]]:
+    """
+    Splits an input list into smaller chunks for batch operations.
+    """
+    if batch_size <= 0:
+        raise ValueError("batch_size must be a positive integer")
+
+    return [items[i:i + batch_size] for i in range(0, len(items), batch_size)]
