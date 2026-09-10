@@ -1,47 +1,51 @@
-from typing import List, Optional, Any, Callable
+"""General utility helper functions for common data manipulation tasks."""
 
-def filter_by_key(data: List[dict], key: str, value: Any) -> List[dict]:
-    """
-    Filter a list of dictionaries based on a specific key-value pair.
+from typing import Any, Dict, Generator, Iterable, List, Type, TypeVar
 
-    Args:
-        data: List of dictionaries to filter.
-        key: The dictionary key to check.
-        value: The target value to match.
+T = TypeVar("T")
 
-    Returns:
-        A filtered list of dictionaries.
-    """
-    return [item for item in data if item.get(key) == value]
 
-def chunk_list(items: List[Any], size: int) -> List[List[Any]]:
-    """
-    Split a list into smaller sub-lists of a specified size.
-
-    Args:
-        items: The list to be partitioned.
-        size: The maximum size of each chunk.
-
-    Returns:
-        A list containing the partitioned sub-lists.
-    """
+def chunk_iterable(iterable: Iterable[T], size: int) -> Generator[List[T], None, None]:
+    """Yield successive chunks of specified size from an iterable."""
     if size <= 0:
-        raise ValueError("Chunk size must be greater than zero")
-    return [items[i:i + size] for i in range(0, len(items), size)]
+        raise ValueError("Chunk size must be greater than 0")
+    
+    chunk: List[T] = []
+    for item in iterable:
+        chunk.append(item)
+        if len(chunk) == size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
 
-def safe_apply(func: Callable, val: Any, default: Any = None) -> Any:
-    """
-    Execute a function on a value, returning a default on failure.
 
-    Args:
-        func: The function to execute.
-        val: The input value for the function.
-        default: Value to return if execution raises an exception.
+def deep_merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively merge two dictionaries into a new dictionary."""
+    result = dict1.copy()
+    for key, value in dict2.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
 
-    Returns:
-        Result of the function or the default value.
-    """
+
+def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
+    """Flatten a nested dictionary structure using a separator for keys."""
+    items: List[tuple] = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
+def safe_cast(value: Any, to_type: Type[T], default: T = None) -> T:
+    """Safely convert a value to a target type, returning default on failure."""
     try:
-        return func(val)
-    except Exception:
+        return to_type(value)
+    except (ValueError, TypeError):
         return default
