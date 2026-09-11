@@ -1,69 +1,34 @@
 import logging
-import sys
-from typing import Optional, Union, Dict
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
-
-class CustomFormatter(logging.Formatter):
-    """Custom logging formatter that adds simple color-coding for terminal output."""
-
-    grey = "\u001b[38;20m"
-    yellow = "\u001b[33;20m"
-    red = "\u001b[31;20m"
-    bold_red = "\u001b[31;1m"
-    reset = "\u001b[0m"
-    log_format = (
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
-    )
-
-    FORMATS: Dict[int, str] = {
-        logging.DEBUG: grey + log_format + reset,
-        logging.INFO: grey + log_format + reset,
-        logging.WARNING: yellow + log_format + reset,
-        logging.ERROR: red + log_format + reset,
-        logging.CRITICAL: bold_red + log_format + reset,
-    }
-
-    def format(self, record: logging.LogRecord) -> str:
-        """Formats the log record with color depending on the log level."""
-        log_fmt = self.FORMATS.get(record.levelno, self.log_format)
-        formatter = logging.Formatter(log_fmt)
-        return formatter.format(record)
-
-
-def get_logger(
-    name: str,
-    level: Union[int, str] = logging.INFO,
-    filepath: Optional[str] = None,
-) -> logging.Logger:
-    """Configures and retrieves a standardized logger instance.
-
-    Args:
-        name: The name of the logger, typically __name__.
-        level: The logging level (e.g., logging.INFO or 'INFO').
-        filepath: Optional file path to write log output to.
-
-    Returns:
-        A pre-configured logging.Logger instance.
-    """
+def setup_logger(name: str, log_file: str, level: int = logging.INFO) -> logging.Logger:
+    """Configures a rotating file logger with console output."""
     logger = logging.getLogger(name)
-
-    if logger.handlers:
-        return logger
-
     logger.setLevel(level)
 
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(level)
-    console_handler.setFormatter(CustomFormatter())
-    logger.addHandler(console_handler)
+    # Ensure directory exists
+    log_path = Path(log_file)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if filepath:
-        file_handler = logging.FileHandler(filepath, encoding="utf-8")
-        file_handler.setLevel(level)
-        file_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-        file_handler.setFormatter(file_formatter)
+    # Formatter configuration
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+
+    # Rotating file handler: 5MB per file, keep 3 backups
+    file_handler = RotatingFileHandler(
+        log_file, maxBytes=5 * 1024 * 1024, backupCount=3
+    )
+    file_handler.setFormatter(formatter)
+
+    # Console handler for development visibility
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+
+    # Avoid duplicate handlers if logger is re-initialized
+    if not logger.handlers:
         logger.addHandler(file_handler)
+        logger.addHandler(console_handler)
 
     return logger
