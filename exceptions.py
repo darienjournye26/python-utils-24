@@ -1,26 +1,33 @@
-"""Custom exception classes for python-utils-24 package."""
-
-from typing import Optional
-
-class PythonUtilsError(Exception):
-    """Base exception class for all errors raised by this utility library."""
-    def __init__(self, message: str, original_exception: Optional[Exception] = None) -> None:
-        super().__init__(message)
-        self.message = message
-        self.original_exception = original_exception
-
-class ValidationError(PythonUtilsError):
-    """Raised when an input or parameter validation check fails."""
+class DataProcessingError(Exception):
+    """Base exception for data handling operations."""
     pass
 
-class ConfigurationError(PythonUtilsError):
-    """Raised when application setup or configuration is invalid."""
+class ValidationError(DataProcessingError):
+    """Raised when data fails schema or format validation."""
     pass
 
-class ProcessingError(PythonUtilsError):
-    """Raised when a background or file processing operation fails."""
+class TransformationError(DataProcessingError):
+    """Raised when data transformation logic fails."""
     pass
 
-class ResourceNotFoundError(PythonUtilsError):
-    """Raised when a specified file, directory, or key is not found."""
-    pass
+def raise_if_none(data, key):
+    """Validates existence of a key in data dictionary."""
+    if data is None or key not in data:
+        raise ValidationError(f"Missing required key: {key}")
+    return data[key]
+
+def safe_execute(func, *args, **kwargs):
+    """
+    Wrapper for handling data operations with standard error catching.
+    """
+    try:
+        return func(*args, **kwargs)
+    except (KeyError, TypeError, ValueError) as e:
+        raise TransformationError(f"Operation failed: {str(e)}") from e
+
+class DataHandlerMixin:
+    """Mixin for standard error reporting in data classes."""
+    def handle_exception(self, error: Exception):
+        """Centralized error logging hook."""
+        print(f"[ERROR] {self.__class__.__name__}: {error}")
+        raise error
