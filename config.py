@@ -1,48 +1,49 @@
 import os
-import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 
-class ConfigLoader:
-    """A utility for loading configuration with fallbacks to defaults and environment variables."""
 
-    def __init__(self, defaults: Optional[Dict[str, Any]] = None):
-        self.defaults = defaults or {}
-        self.config = self.defaults.copy()
+class ConfigError(Exception):
+    """Raised when there is an issue with the configuration."""
 
-    def load_from_dict(self, data: Dict[str, Any]) -> None:
-        """Merges dictionary data into the configuration."""
-        self.config.update(data)
+    pass
 
-    def load_from_json(self, file_path: str) -> bool:
-        """Loads and merges configuration from a JSON file. Returns True if successful."""
-        if not os.path.exists(file_path):
-            return False
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    self.load_from_dict(data)
-                    return True
-        except (json.JSONDecodeError, IOError):
-            pass
-        return False
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Gets a configuration value, falling back to environment variable or default."""
-        # Environment variables take precedence if present
-        env_key = key.upper()
-        if env_key in os.environ:
-            env_val = os.environ[env_key]
-            if env_val.lower() == "true":
-                return True
-            if env_val.lower() == "false":
-                return False
-            try:
-                return int(env_val)
-            except ValueError:
-                try:
-                    return float(env_val)
-                except ValueError:
-                    return env_val
+class Configuration:
+    """Manages application configuration loaded from environment variables or dicts."""
 
-        return self.config.get(key, default)
+    def __init__(self, defaults: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize the Configuration with optional default values."""
+        self._config: Dict[str, Any] = defaults or {}
+
+    def get(
+        self, key: str, default: Optional[Any] = None
+    ) -> Union[Any, None]:
+        """Retrieve a configuration value by key, with an optional default fallback.
+
+        Args:
+            key: The configuration key to retrieve.
+            default: The fallback value if the key is not found.
+
+        Returns:
+            The configuration value or the default fallback.
+        """
+        return self._config.get(key, default)
+
+    def set(self, key: str, value: Any) -> None:
+        """Set a configuration value.
+
+        Args:
+            key: The configuration key to set.
+            value: The value to associate with the key.
+        """
+        self._config[key] = value
+
+    def load_from_env(self, keys: List[str]) -> None:
+        """Load specified configuration keys from environment variables.
+
+        Args:
+            keys: A list of environment variable names to load.
+        """
+        for key in keys:
+            if key in os.environ:
+                self._config[key] = os.environ[key]
