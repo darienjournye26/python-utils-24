@@ -1,36 +1,31 @@
-class ValidationError(Exception):
-    """Custom exception for input validation failures."""
-    pass
+import re
+from typing import Any, Optional
 
-def validate_input_data(data):
-    """
-    Validates the structure and types of the input dictionary.
-    Ensures 'id' is integer and 'payload' is non-empty string.
-    """
-    if not isinstance(data, dict):
-        raise ValidationError("input must be a dictionary")
+class DataValidator:
+    """Utility class for common data format validation."""
 
-    if "id" not in data or not isinstance(data["id"], int):
-        raise ValidationError("missing or invalid integer 'id'")
+    EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
-    if "payload" not in data or not isinstance(data["payload"], str):
-        raise ValidationError("missing or invalid string 'payload'")
+    @staticmethod
+    def is_email(value: Any) -> bool:
+        """Check if string is a valid email address."""
+        if not isinstance(value, str):
+            return False
+        return bool(DataValidator.EMAIL_REGEX.match(value))
 
-    if not data["payload"].strip():
-        raise ValidationError("payload cannot be empty or whitespace")
+    @staticmethod
+    def is_non_empty_string(value: Any) -> bool:
+        """Check if input is a non-empty string."""
+        return isinstance(value, str) and len(value.strip()) > 0
 
+    @staticmethod
+    def validate_range(value: int, min_val: int, max_val: int) -> bool:
+        """Verify integer is within specified boundaries."""
+        return isinstance(value, int) and min_val <= value <= max_val
+
+def validate_input_schema(data: dict, schema: dict) -> bool:
+    """Basic schema validation for dictionary inputs."""
+    for key, expected_type in schema.items():
+        if key not in data or not isinstance(data[key], expected_type):
+            return False
     return True
-
-def process_stream(data_list):
-    """
-    Main processing loop with integrated input validation.
-    """
-    valid_items = []
-    for entry in data_list:
-        try:
-            if validate_input_data(entry):
-                valid_items.append(entry)
-        except ValidationError as e:
-            print(f"Skipping invalid entry {entry}: {e}")
-            continue
-    return valid_items
