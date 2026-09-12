@@ -1,49 +1,33 @@
+import json
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict
 
+def load_config(config_path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Loads configuration from a JSON file, merging with provided defaults.
+    """
+    config = defaults.copy()
 
-class ConfigError(Exception):
-    """Raised when there is an issue with the configuration."""
+    if not os.path.exists(config_path):
+        return config
 
-    pass
+    try:
+        with open(config_path, 'r') as f:
+            user_config = json.load(f)
+            if isinstance(user_config, dict):
+                config.update(user_config)
+    except (json.JSONDecodeError, IOError):
+        pass
 
+    return config
 
-class Configuration:
-    """Manages application configuration loaded from environment variables or dicts."""
-
-    def __init__(self, defaults: Optional[Dict[str, Any]] = None) -> None:
-        """Initialize the Configuration with optional default values."""
-        self._config: Dict[str, Any] = defaults or {}
-
-    def get(
-        self, key: str, default: Optional[Any] = None
-    ) -> Union[Any, None]:
-        """Retrieve a configuration value by key, with an optional default fallback.
-
-        Args:
-            key: The configuration key to retrieve.
-            default: The fallback value if the key is not found.
-
-        Returns:
-            The configuration value or the default fallback.
-        """
-        return self._config.get(key, default)
-
-    def set(self, key: str, value: Any) -> None:
-        """Set a configuration value.
-
-        Args:
-            key: The configuration key to set.
-            value: The value to associate with the key.
-        """
-        self._config[key] = value
-
-    def load_from_env(self, keys: List[str]) -> None:
-        """Load specified configuration keys from environment variables.
-
-        Args:
-            keys: A list of environment variable names to load.
-        """
-        for key in keys:
-            if key in os.environ:
-                self._config[key] = os.environ[key]
+if __name__ == '__main__':
+    # Example usage for configuration management
+    default_settings = {
+        'host': 'localhost',
+        'port': 8080,
+        'debug': False
+    }
+    
+    app_config = load_config('settings.json', default_settings)
+    print(f"Loaded configuration: {app_config}")
