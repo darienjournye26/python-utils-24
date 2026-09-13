@@ -1,30 +1,48 @@
 import logging
+import sys
 from logging.handlers import RotatingFileHandler
-import os
+from pathlib import Path
+from typing import Optional
 
-def setup_logger(name: str, log_file: str = 'app.log', level: int = logging.INFO) -> logging.Logger:
-    """Configures a rotating file logger."""
+DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+
+def setup_logger(
+    name: str = "app",
+    log_file: Optional[str] = None,
+    level: int = logging.INFO,
+    max_bytes: int = 5 * 1024 * 1024,
+    backup_count: int = 5,
+    log_format: str = DEFAULT_LOG_FORMAT,
+    console_output: bool = True,
+) -> logging.Logger:
+    """Configure and return a logger instance with rotating file support."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Prevent duplicate handlers if logger is re-initialized
-    if not logger.handlers:
-        # 5MB file size limit with 3 backup files
-        handler = RotatingFileHandler(
-            log_file, 
-            maxBytes=5 * 1024 * 1024, 
-            backupCount=3
+    # Clear existing handlers to prevent duplicate logging
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    formatter = logging.Formatter(fmt=log_format, datefmt=DEFAULT_DATE_FORMAT)
+
+    if console_output:
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    if log_file:
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        file_handler = RotatingFileHandler(
+            filename=log_path,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+            encoding="utf-8",
         )
-        
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
     return logger
-
-# Example usage:
-if __name__ == '__main__':
-    log = setup_logger('app_logger')
-    log.info('Logger initialized successfully')
