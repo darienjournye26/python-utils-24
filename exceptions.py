@@ -1,33 +1,25 @@
-class DataProcessingError(Exception):
-    """Base exception for data handling operations."""
-    pass
+import time
+import functools
+import logging
+from typing import Callable, Any, Type, Tuple
 
-class ValidationError(DataProcessingError):
-    """Raised when data fails schema or format validation."""
-    pass
+logger = logging.getLogger(__name__)
 
-class TransformationError(DataProcessingError):
-    """Raised when data transformation logic fails."""
-    pass
-
-def raise_if_none(data, key):
-    """Validates existence of a key in data dictionary."""
-    if data is None or key not in data:
-        raise ValidationError(f"Missing required key: {key}")
-    return data[key]
-
-def safe_execute(func, *args, **kwargs):
-    """
-    Wrapper for handling data operations with standard error catching.
-    """
-    try:
-        return func(*args, **kwargs)
-    except (KeyError, TypeError, ValueError) as e:
-        raise TransformationError(f"Operation failed: {str(e)}") from e
-
-class DataHandlerMixin:
-    """Mixin for standard error reporting in data classes."""
-    def handle_exception(self, error: Exception):
-        """Centralized error logging hook."""
-        print(f"[ERROR] {self.__class__.__name__}: {error}")
-        raise error
+def retry(exceptions: Tuple[Type[Exception], ...], tries: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    """Decorator for retrying functions on network errors."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            mtries, mdelay = tries, delay
+            while mtries > 1:
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    msg = f"{e}. Retrying in {mdelay} seconds..."
+                    logger.warning(msg)
+                    time.sleep(mdelay)
+                    mtries -= 1
+                    mdelay *= backoff
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
