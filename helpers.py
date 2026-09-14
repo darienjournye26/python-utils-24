@@ -1,39 +1,11 @@
-"""General utility helper functions for common data manipulation tasks."""
+from typing import Any, Iterable, Dict, Optional
 
-from typing import Any, Dict, Generator, Iterable, List, Type, TypeVar
-
-T = TypeVar("T")
-
-
-def chunk_iterable(iterable: Iterable[T], size: int) -> Generator[List[T], None, None]:
-    """Yield successive chunks of specified size from an iterable."""
-    if size <= 0:
-        raise ValueError("Chunk size must be greater than 0")
-    
-    chunk: List[T] = []
-    for item in iterable:
-        chunk.append(item)
-        if len(chunk) == size:
-            yield chunk
-            chunk = []
-    if chunk:
-        yield chunk
-
-
-def deep_merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
-    """Recursively merge two dictionaries into a new dictionary."""
-    result = dict1.copy()
-    for key, value in dict2.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
-    """Flatten a nested dictionary structure using a separator for keys."""
-    items: List[tuple] = []
+def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """
+    Flatten a nested dictionary structure using a separator.
+    Useful for converting complex JSON or configs into flat structures.
+    """
+    items = []
     for k, v in d.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
         if isinstance(v, dict):
@@ -42,10 +14,31 @@ def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dic
             items.append((new_key, v))
     return dict(items)
 
+def chunk_iterable(data: Iterable[Any], size: int) -> Iterable[Any]:
+    """
+    Yield successive chunks from an iterable for batch processing.
+    """
+    it = iter(data)
+    while True:
+        chunk = []
+        try:
+            for _ in range(size):
+                chunk.append(next(it))
+            yield chunk
+        except StopIteration:
+            if chunk:
+                yield chunk
+            break
 
-def safe_cast(value: Any, to_type: Type[T], default: T = None) -> T:
-    """Safely convert a value to a target type, returning default on failure."""
-    try:
-        return to_type(value)
-    except (ValueError, TypeError):
-        return default
+def get_nested(data: Dict[str, Any], path: str, default: Any = None) -> Any:
+    """
+    Access nested dictionary values using dot notation keys.
+    Example: get_nested(config, 'db.port', 5432)
+    """
+    keys = path.split('.')
+    for key in keys:
+        if isinstance(data, dict):
+            data = data.get(key, default)
+        else:
+            return default
+    return data
