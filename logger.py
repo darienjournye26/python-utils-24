@@ -1,48 +1,34 @@
 import logging
 import sys
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
 from typing import Optional
 
-DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+class AppLogger:
+    """Standardized logging utility for python-utils-24."""
 
+    def __init__(self, name: str, level: int = logging.INFO):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        self._setup_handler()
 
-def setup_logger(
-    name: str = "app",
-    log_file: Optional[str] = None,
-    level: int = logging.INFO,
-    max_bytes: int = 5 * 1024 * 1024,
-    backup_count: int = 5,
-    log_format: str = DEFAULT_LOG_FORMAT,
-    console_output: bool = True,
-) -> logging.Logger:
-    """Configure and return a logger instance with rotating file support."""
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
+    def _setup_handler(self) -> None:
+        if not self.logger.handlers:
+            handler = logging.StreamHandler(sys.stdout)
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
 
-    # Clear existing handlers to prevent duplicate logging
-    if logger.hasHandlers():
-        logger.handlers.clear()
+    def info(self, msg: str) -> None:
+        self.logger.info(msg)
 
-    formatter = logging.Formatter(fmt=log_format, datefmt=DEFAULT_DATE_FORMAT)
+    def error(self, msg: str, exc_info: bool = False) -> None:
+        self.logger.error(msg, exc_info=exc_info)
 
-    if console_output:
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+    def debug(self, msg: str) -> None:
+        self.logger.debug(msg)
 
-    if log_file:
-        log_path = Path(log_file)
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-
-        file_handler = RotatingFileHandler(
-            filename=log_path,
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding="utf-8",
-        )
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-    return logger
+def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
+    """Factory function for consistent logger instances."""
+    logger_instance = AppLogger(name, level or logging.INFO)
+    return logger_instance.logger
