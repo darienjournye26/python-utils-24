@@ -1,28 +1,26 @@
-from typing import Final, Dict, Any
+import os
+from typing import Final
 
-# Configuration constants for the utility suite
+# Application path configurations
+BASE_DIR: Final[str] = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR: Final[str] = os.path.join(BASE_DIR, 'data')
+LOG_DIR: Final[str] = os.path.join(BASE_DIR, 'logs')
+
+# Default operation timeouts
 DEFAULT_TIMEOUT: Final[int] = 30
 MAX_RETRIES: Final[int] = 3
 
-# Path settings for file system operations
-DEFAULT_LOG_DIR: Final[str] = "/var/log/python-utils-24"
-DEFAULT_CONFIG_PATH: Final[str] = "./config.yaml"
+# Supported file extensions
+ALLOWED_EXTENSIONS: Final[set[str]] = {'.json', '.csv', '.yaml', '.txt'}
 
-# Standardized error messages
-ERROR_TIMEOUT: Final[str] = "operation timed out after {} seconds"
-ERROR_CONNECTION: Final[str] = "failed to establish remote connection"
+# System environment keys
+ENV_VAR_PREFIX: Final[str] = 'PYUTILS_'
+AUTH_TOKEN_KEY: Final[str] = f'{ENV_VAR_PREFIX}AUTH_TOKEN'
 
-# Supported environment configurations
-SUPPORTED_ENVS: Final[list[str]] = ["development", "staging", "production"]
+# Formatting defaults
+DATE_FORMAT: Final[str] = '%Y-%m-%d %H:%M:%S'
+ENCODING: Final[str] = 'utf-8'
 
-def get_default_config() -> Dict[str, Any]:
-    """Return the base configuration dictionary.
-
-    Returns:
-        Dict[str, Any]: Default application settings mapping.
-    """
-    return {
-        "timeout": DEFAULT_TIMEOUT,
-        "retries": MAX_RETRIES,
-        "log_dir": DEFAULT_LOG_DIR
-    }
+def get_config_path(filename: str) -> str:
+    """Construct full path for config files."""
+    return os.path.join(BASE_DIR, 'configs', filename)
