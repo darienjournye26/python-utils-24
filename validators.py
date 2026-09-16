@@ -1,32 +1,29 @@
-import re
-from typing import Any, Optional
-
-def validate_input_schema(data: Any, schema: dict) -> bool:
-    """Validate dictionary data against defined requirements."""
-    if not isinstance(data, dict):
-        return False
-    
-    for key, expected_type in schema.items():
-        if key not in data:
-            return False
-        if not isinstance(data[key], expected_type):
-            return False
-    return True
+from typing import Any, Optional, Union
 
 def validate_email(email: str) -> bool:
-    """Regex check for email format validation."""
-    pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-    return bool(re.match(pattern, email))
+    """Validate the format of an email address string."""
+    if not isinstance(email, str) or "@" not in email:
+        return False
+    return email.count("@") == 1 and "." in email.split("@")[1]
 
-def sanitize_string(value: str) -> str:
-    """Remove potential shell injection characters."""
-    return re.sub(r'[;&|<>\$]', '', value)
+def validate_range(value: Union[int, float], min_val: float, max_val: float) -> bool:
+    """Check if a numeric value falls within inclusive range."""
+    return min_val <= value <= max_val
 
-def process_validated_payload(data: dict, schema: dict) -> Optional[dict]:
-    """Orchestrate validation before processing flow."""
-    if not validate_input_schema(data, schema):
-        return None
-    
-    # Sanitize string fields after structure validation
-    return {k: (sanitize_string(v) if isinstance(v, str) else v) 
-            for k, v in data.items()}
+def validate_not_empty(data: Any) -> bool:
+    """Check if the input object contains data elements."""
+    if data is None:
+        return False
+    if isinstance(data, (str, list, dict, set)):
+        return len(data) > 0
+    return True
+
+def sanitize_input(value: Optional[str]) -> str:
+    """Remove whitespace and return empty string if None."""
+    if value is None:
+        return ""
+    return str(value).strip()
+
+def validate_type(value: Any, expected_type: type) -> bool:
+    """Check if a value matches the provided type."""
+    return isinstance(value, expected_type)
