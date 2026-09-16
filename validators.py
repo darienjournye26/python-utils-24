@@ -1,25 +1,32 @@
 import re
 from typing import Any, Optional
 
+def validate_input_schema(data: Any, schema: dict) -> bool:
+    """Validate dictionary data against defined requirements."""
+    if not isinstance(data, dict):
+        return False
+    
+    for key, expected_type in schema.items():
+        if key not in data:
+            return False
+        if not isinstance(data[key], expected_type):
+            return False
+    return True
+
 def validate_email(email: str) -> bool:
-    """Validates standard email format using regex."""
-    pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    """Regex check for email format validation."""
+    pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
     return bool(re.match(pattern, email))
 
-def validate_length(value: str, min_len: int, max_len: int) -> bool:
-    """Checks string length within bounds."""
-    return min_len <= len(value) <= max_len
+def sanitize_string(value: str) -> str:
+    """Remove potential shell injection characters."""
+    return re.sub(r'[;&|<>\$]', '', value)
 
-def validate_range(value: int, min_val: int, max_val: int) -> bool:
-    """Checks integer range boundaries."""
-    return min_val <= value <= max_val
-
-def sanitize_input(value: Any) -> str:
-    """Converts input to stripped string for processing."""
-    if value is None:
-        return ""
-    return str(value).strip()
-
-def validate_identifier(name: str) -> bool:
-    """Checks for alphanumeric identifier format."""
-    return bool(re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name))
+def process_validated_payload(data: dict, schema: dict) -> Optional[dict]:
+    """Orchestrate validation before processing flow."""
+    if not validate_input_schema(data, schema):
+        return None
+    
+    # Sanitize string fields after structure validation
+    return {k: (sanitize_string(v) if isinstance(v, str) else v) 
+            for k, v in data.items()}
