@@ -1,42 +1,36 @@
-import os
+import time
+import functools
 import logging
-from typing import Any, Optional
+from typing import Callable, Any, Type
 
 logger = logging.getLogger(__name__)
 
-class DataProcessor:
-    def __init__(self, directory: str = "./data"):
-        self.directory = directory
-        if not os.path.exists(self.directory):
-            os.makedirs(self.directory)
+def retry_on_failure(exceptions: tuple[Type[Exception], ...] = (Exception,), 
+                     max_retries: int = 3, 
+                     delay: float = 1.0):
+    """Decorator to retry network-bound operations on failure."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                    time.sleep(delay)
+            
+            logger.error(f"Function {func.__name__} failed after {max_retries} attempts.")
+            raise last_exception
+        return wrapper
+    return decorator
 
-    def clean_key(self, key: str) -> str:
-        """Sanitize input keys for file system safety."""
-        return "".join(c for c in key if c.isalnum() or c in ("_", "-")).strip()
-
-    def write_data(self, key: str, value: Any) -> bool:
-        """Persists content to local storage directory."""
-        safe_key = self.clean_key(key)
-        if not safe_key:
-            logger.error("Invalid key provided for storage")
-            return False
-
-        path = os.path.join(self.directory, f"{safe_key}.txt")
-        try:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(str(value))
-            return True
-        except IOError as e:
-            logger.error(f"Disk write failure: {e}")
-            return False
-
-    def get_data(self, key: str) -> Optional[str]:
-        """Retrieves content from local storage."""
-        path = os.path.join(self.directory, f"{self.clean_key(key)}.txt")
-        try:
-            if os.path.exists(path):
-                with open(path, "r", encoding="utf-8") as f:
-                    return f.read()
-        except IOError as e:
-            logger.warning(f"Read access error: {e}")
-        return None
+@retry_on_failure(max_retries=3, delay=2.0)
+def fetch_data(url: str):
+    """Example usage for network data retrieval."""
+    # Placeholder logic for network request simulation
+    import random
+    if random.random() < 0.7:
+        raise ConnectionError("Service unavailable")
+    return {"status": "success", "url": url}
