@@ -1,36 +1,42 @@
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any, Dict, List
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger("processor")
 
-def clean_nested_dict(data: Dict[str, Any], keys_to_strip: Optional[List[str]] = None) -> Dict[str, Any]:
-    """
-    Recursively removes specified keys from a dictionary and cleans null values.
-    """
-    if keys_to_strip is None:
-        keys_to_strip = []
+class BatchProcessor:
+    """Processes batches of input data with robust validation."""
 
-    cleaned = {}
-    for key, value in data.items():
-        if key in keys_to_strip:
-            continue
+    def __init__(self, required_keys: List[str]):
+        self.required_keys = required_keys
 
-        if isinstance(value, dict):
-            cleaned[key] = clean_nested_dict(value, keys_to_strip)
-        elif isinstance(value, list):
-            cleaned[key] = [
-                clean_nested_dict(i, keys_to_strip) if isinstance(i, dict) else i
-                for i in value
-            ]
-        elif value is not None:
-            cleaned[key] = value
+    def validate_payload(self, payload: Any) -> Dict[str, Any]:
+        """Validates that payload is a dictionary and contains all required keys."""
+        if not isinstance(payload, dict):
+            raise TypeError(f"Payload must be a dictionary, got {type(payload).__name__}")
 
-    return cleaned
+        for key in self.required_keys:
+            if key not in payload:
+                raise KeyError(f"Missing required validation key: '{key}'")
 
+        for key, val in payload.items():
+            if val is None or (isinstance(val, (str, list, dict)) and not val):
+                raise ValueError(f"Value for field '{key}' cannot be empty or null")
 
-def batch_process(items: List[Any], batch_size: int = 10) -> List[List[Any]]:
-    """
-    Splits an input list into smaller chunks for batch operations.
-    """
-    if batch_size <= 0:
-        raise ValueError("batch_size must be a positive integer")
+        return payload
 
-    return [items[i:i + batch_size] for i in range(0, len(items), batch_size)]
+    def process_batch(self, items: List[Any]) -> List[Dict[str, Any]]:
+        """Iterates through items, applying validation in the main loop."""
+        processed_items = []
+
+        for index, item in enumerate(items):
+            try:
+                logger.info("Processing item at index %d", index)
+                validated_item = self.validate_payload(item)
+                validated_item["processed"] = True
+                processed_items.append(validated_item)
+            except (TypeError, KeyError, ValueError) as err:
+                logger.error("Validation failed for item %d: %s", index, str(err))
+                continue
+
+        return processed_items
