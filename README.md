@@ -1,55 +1,48 @@
 # python-utils-24
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-
-`python-utils-24` is a lightweight, zero-dependency suite of helper modules designed to simplify daily Python development tasks. It eliminates repetitive boilerplate code by providing optimized wrappers for file handling, string manipulation, and function execution.
+A curated collection of high-performance Python helper functions designed to streamline repetitive development tasks. This library focuses on simplifying data serialization, file system operations, and execution timing to improve overall code maintainability.
 
 ## Features
 
-- **Smart File Operations:** Safe JSON and YAML loaders with built-in fallback defaults and atomic file writes.
-- **Text & String Processing:** Fast slugification, Unicode normalization, and pattern-matching utilities.
-- **Execution Decorators:** Ready-to-use decorators for function timing, automatic retries with exponential backoff, and result caching.
-- **Environment Management:** Light parser for `.env` files with automatic type casting for booleans, integers, and lists.
+*   **Robust File Operations:** Advanced wrappers for safe directory traversal, recursive file hashing, and automated cleanup routines.
+*   **Performance Benchmarking:** Integrated decorator-based timers to measure execution duration and memory consumption with millisecond precision.
+*   **Data Validation:** Lightweight utility suite for sanitizing dictionary inputs and enforcing schema consistency across complex JSON structures.
+*   **Logging Enhancements:** Pre-configured handlers that enable color-coded terminal output and structured file rotation with zero boilerplate.
 
 ## Installation
 
-Install the package directly via `pip`:
+Install the package directly via pip:
 
 ```bash
 pip install python-utils-24
 ```
 
-Or install from the repository:
+To include development dependencies for testing, run:
 
 ```bash
-git clone https://github.com/Developer/python-utils-24.git
-cd python-utils-24
-pip install .
+pip install python-utils-24[dev]
 ```
 
-## Quick Start
+## Basic Usage
+
+Import the required modules to access the utility suite. Below is an example of using the performance timer to profile a function:
 
 ```python
-from python_utils_24.files import safe_json_load
-from python_utils_24.strings import slugify
-from python_utils_24.decorators import retry
+from pyutils24 import timer, file_manager
 
-# 1. Clean string transformation
-clean_slug = slugify("Python Utils 2024 Release!")
-print(clean_slug)  # Output: "python-utils-2024-release"
+@timer
+def process_data(data):
+    # Perform intensive data transformation
+    return [x**2 for x in data]
 
-# 2. Safe file loading with fallbacks
-config = safe_json_load("settings.json", default={"theme": "dark", "debug": False})
-
-# 3. Flaky task retries with backoff
-@retry(tries=3, delay=1.5)
-def process_network_request():
-    # Function logic here
-    return True
-
-process_network_request()
+# Use file utilities to verify paths safely
+if file_manager.exists('data/input.json'):
+    result = process_data([1, 2, 3, 4, 5])
+    print(f"Task completed successfully.")
 ```
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Distributed under the MIT License. See `LICENSE` for more information.
