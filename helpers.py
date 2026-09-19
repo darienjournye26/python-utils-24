@@ -1,42 +1,44 @@
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Optional, Callable
 
 logger = logging.getLogger(__name__)
 
-def safe_execute(func: Callable, *args: Any, default: Any = None, **kwargs: Any) -> Any:
-    """Executes a function with error handling for edge cases."""
+def safe_execute(func: Callable, *args: Any, default: Any = None) -> Any:
+    """
+    executes a function safely with error handling
+    returns the default value on failure
+    """
     try:
-        if not callable(func):
-            raise ValueError(f"Provided object {func} is not callable")
-        return func(*args, **kwargs)
+        return func(*args)
     except (ValueError, TypeError, AttributeError) as e:
-        logger.error(f"Invalid input for operation: {e}")
+        logger.error(f"safe execution failed for {func.__name__}: {e}")
         return default
     except Exception as e:
-        logger.exception(f"Unexpected error during execution: {e}")
-        return default
+        logger.critical(f"unexpected system error: {e}")
+        raise
+
+def parse_int(value: Any, fallback: int = 0) -> int:
+    """
+    converts input to integer with edge case handling
+    """
+    try:
+        if value is None:
+            return fallback
+        return int(value)
+    except (ValueError, TypeError):
+        return fallback
 
 def get_nested_key(data: dict, keys: list, default: Any = None) -> Any:
-    """Safely retrieves nested dictionary values."""
+    """
+    retrieves value from nested dict safely
+    """
     if not isinstance(data, dict):
         return default
     
     current = data
     try:
         for key in keys:
-            if not isinstance(current, dict) or key not in current:
-                return default
             current = current[key]
         return current
     except (KeyError, TypeError):
         return default
-
-def validate_numeric(value: Any, min_val: float = 0, max_val: float = 1e9) -> Optional[float]:
-    """Validates numeric input within bounds."""
-    try:
-        val = float(value)
-        if min_val <= val <= max_val:
-            return val
-    except (TypeError, ValueError):
-        pass
-    return None
