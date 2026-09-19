@@ -1,35 +1,42 @@
-import json
-import os
-from typing import Any, Dict, Optional
+import logging
+from typing import Any, Callable, Optional
 
-def load_json_file(file_path: str) -> Dict[str, Any]:
-    """Reads and parses a JSON file from disk."""
-    if not os.path.exists(file_path):
-        return {}
-    with open(file_path, 'r', encoding='utf-8') as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return {}
+logger = logging.getLogger(__name__)
 
-def chunk_list(data: list, size: int):
-    """Splits a list into smaller chunks of fixed size."""
-    for i in range(0, len(data), size):
-        yield data[i:i + size]
+def safe_execute(func: Callable, *args: Any, default: Any = None, **kwargs: Any) -> Any:
+    """Executes a function with error handling for edge cases."""
+    try:
+        if not callable(func):
+            raise ValueError(f"Provided object {func} is not callable")
+        return func(*args, **kwargs)
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.error(f"Invalid input for operation: {e}")
+        return default
+    except Exception as e:
+        logger.exception(f"Unexpected error during execution: {e}")
+        return default
 
-def ensure_directory(path: str) -> None:
-    """Creates a directory if it does not exist."""
-    if not os.path.exists(path):
-        os.makedirs(path)
+def get_nested_key(data: dict, keys: list, default: Any = None) -> Any:
+    """Safely retrieves nested dictionary values."""
+    if not isinstance(data, dict):
+        return default
+    
+    current = data
+    try:
+        for key in keys:
+            if not isinstance(current, dict) or key not in current:
+                return default
+            current = current[key]
+        return current
+    except (KeyError, TypeError):
+        return default
 
-def format_bytes(size: int) -> str:
-    """Converts raw bytes to human readable string."""
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if size < 1024:
-            return f"{size:.2f} {unit}"
-        size /= 1024
-    return f"{size:.2f} TB"
-
-def get_env_variable(key: str, default: Optional[str] = None) -> str:
-    """Retrieves environment variable with fallback default."""
-    return os.environ.get(key, default or "")
+def validate_numeric(value: Any, min_val: float = 0, max_val: float = 1e9) -> Optional[float]:
+    """Validates numeric input within bounds."""
+    try:
+        val = float(value)
+        if min_val <= val <= max_val:
+            return val
+    except (TypeError, ValueError):
+        pass
+    return None
