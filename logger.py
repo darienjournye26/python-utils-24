@@ -1,34 +1,32 @@
 import logging
-import sys
-from typing import Optional
+from logging.handlers import RotatingFileHandler
+import os
 
-class AppLogger:
-    """Standardized logging utility for python-utils-24."""
+def setup_logger(name: str, log_file: str = 'app.log', level=logging.INFO) -> logging.Logger:
+    """Configures a rotating file logger for the application."""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-    def __init__(self, name: str, level: int = logging.INFO):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
-        self._setup_handler()
+    # Prevent duplicate handlers if logger is already configured
+    if logger.hasHandlers():
+        logger.handlers.clear()
 
-    def _setup_handler(self) -> None:
-        if not self.logger.handlers:
-            handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            )
-            handler.setFormatter(formatter)
-            self.logger.addHandler(handler)
+    # Rotate at 5MB, keep 3 backup files
+    handler = RotatingFileHandler(
+        log_file, 
+        maxBytes=5 * 1024 * 1024, 
+        backupCount=3
+    )
 
-    def info(self, msg: str) -> None:
-        self.logger.info(msg)
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
-    def error(self, msg: str, exc_info: bool = False) -> None:
-        self.logger.error(msg, exc_info=exc_info)
+    # Also output to console
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
-    def debug(self, msg: str) -> None:
-        self.logger.debug(msg)
-
-def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
-    """Factory function for consistent logger instances."""
-    logger_instance = AppLogger(name, level or logging.INFO)
-    return logger_instance.logger
+    return logger
