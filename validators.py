@@ -1,29 +1,30 @@
-from typing import Any, Optional, Union
+from typing import Any, Dict, Optional
 
-def validate_email(email: str) -> bool:
-    """Validate the format of an email address string."""
-    if not isinstance(email, str) or "@" not in email:
+def validate_schema(data: Any, schema: Dict[str, type], strict: bool = False) -> bool:
+    """Validates dictionary structure against a type schema."""
+    if not isinstance(data, dict):
         return False
-    return email.count("@") == 1 and "." in email.split("@")[1]
 
-def validate_range(value: Union[int, float], min_val: float, max_val: float) -> bool:
-    """Check if a numeric value falls within inclusive range."""
-    return min_val <= value <= max_val
+    if strict and set(data.keys()) != set(schema.keys()):
+        return False
 
-def validate_not_empty(data: Any) -> bool:
-    """Check if the input object contains data elements."""
+    for key, expected_type in schema.items():
+        value = data.get(key)
+        if value is None or not isinstance(value, expected_type):
+            return False
+
+    return True
+
+def sanitize_input(data: str, max_length: int = 255) -> str:
+    """Cleans strings for general input handling."""
+    if not isinstance(data, str):
+        return ""
+    return data.strip()[:max_length]
+
+def is_non_empty(data: Optional[Any]) -> bool:
+    """Checks if container or string has content."""
     if data is None:
         return False
     if isinstance(data, (str, list, dict, set)):
         return len(data) > 0
     return True
-
-def sanitize_input(value: Optional[str]) -> str:
-    """Remove whitespace and return empty string if None."""
-    if value is None:
-        return ""
-    return str(value).strip()
-
-def validate_type(value: Any, expected_type: type) -> bool:
-    """Check if a value matches the provided type."""
-    return isinstance(value, expected_type)
