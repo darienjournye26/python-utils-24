@@ -1,34 +1,31 @@
-from typing import Final, Dict, Any
+import typing
 
-# Application configuration constants
-DEFAULT_TIMEOUT: Final[int] = 30
-MAX_RETRIES: Final[int] = 3
+# Configuration settings for data processing utilities
+DEFAULT_ENCODING: str = 'utf-8'
+CHUNK_SIZE: int = 1024 * 64  # 64KB buffer size
 
-# System path settings
-BASE_DIRECTORY: Final[str] = "/opt/python-utils-24/data"
-LOG_FILE: Final[str] = f"{BASE_DIRECTORY}/app.log"
+# Supported file extensions for general data handling
+SUPPORTED_FORMATS: typing.Tuple[str, ...] = ('.json', '.csv', '.yaml', '.txt')
 
-# Environment mapping definitions
-ENV_MAP: Final[Dict[str, str]] = {
-    "dev": "development",
-    "stg": "staging",
-    "prd": "production"
+# Standard timeout values in seconds
+NETWORK_TIMEOUT: int = 30
+OPERATION_RETRY_LIMIT: int = 3
+
+# Path constants for environment mapping
+LOG_DIR: str = './logs'
+TEMP_DIR: str = './tmp'
+
+def get_buffer_size(multiplier: int = 1) -> int:
+    """Return scaled buffer size for memory allocation."""
+    return CHUNK_SIZE * multiplier
+
+def is_supported(filename: str) -> bool:
+    """Check if the file format is allowed."""
+    return filename.lower().endswith(SUPPORTED_FORMATS)
+
+# Mapping for environment-specific execution modes
+ENV_MODES: typing.Dict[str, str] = {
+    'dev': 'development',
+    'prod': 'production',
+    'test': 'testing'
 }
-
-def get_timeout_settings() -> Dict[str, Any]:
-    """
-    Returns a dictionary containing system default timeout configurations.
-
-    Returns:
-        Dict[str, Any]: Mapping of timeout parameter names to values.
-    """
-    return {
-        "connection": DEFAULT_TIMEOUT,
-        "read": DEFAULT_TIMEOUT * 2,
-        "write": DEFAULT_TIMEOUT * 2
-    }
-
-# Operational status codes
-STATUS_SUCCESS: Final[int] = 0
-STATUS_ERROR: Final[int] = 1
-STATUS_WARNING: Final[int] = 2
