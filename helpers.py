@@ -1,47 +1,46 @@
-import re
-from typing import Any, Dict, Generator, List, Optional
+import logging
+from typing import Any, Optional, Callable
 
+logger = logging.getLogger(__name__)
 
-def flatten_dict(
-    d: Dict[str, Any], parent_key: str = "", sep: str = "."
-) -> Dict[str, Any]:
-    """Flatten a nested dictionary into a single-level dictionary."""
-    items: List[tuple] = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else str(k)
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+def safe_execute(func: Callable, *args: Any, default: Optional[Any] = None, **kwargs: Any) -> Any:
+    """
+    executes a callable with error handling for common runtime exceptions.
+    logs failures and returns the provided default value on error.
+    """
+    try:
+        return func(*args, **kwargs)
+    except (ValueError, TypeError, KeyError, IndexError) as e:
+        logger.error(f"execution error in {func.__name__}: {str(e)}")
+        return default
+    except Exception as e:
+        logger.critical(f"unexpected system error in {func.__name__}: {str(e)}")
+        raise
 
+def validate_input(data: Any, expected_type: type) -> bool:
+    """
+    validates input data type and structure robustness.
+    returns false for none or mismatched types.
+    """
+    if data is None:
+        return False
+    if not isinstance(data, expected_type):
+        logger.warning(f"input type mismatch: expected {expected_type}, got {type(data)}")
+        return False
+    return True
 
-def chunk_iterable(
-    iterable: List[Any], chunk_size: int
-) -> Generator[List[Any], None, None]:
-    """Yield successive chunks of specified size from a list."""
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be greater than 0")
-    for i in range(0, len(iterable), chunk_size):
-        yield iterable[i : i + chunk_size]
-
-
-def safe_get(
-    data: Dict[str, Any], key_path: str, default: Optional[Any] = None
-) -> Any:
-    """Safely retrieve nested values from a dictionary using dot notation."""
-    keys = key_path.split(".")
+def get_nested_key(data: dict, keys: list, default: Any = None) -> Any:
+    """
+    traverses a nested dictionary using a list of keys safely.
+    returns default value if any key path fails.
+    """
+    if not isinstance(data, dict):
+        return default
+    
     current = data
-    for k in keys:
-        if isinstance(current, dict) and k in current:
-            current = current[k]
-        else:
-            return default
-    return current
-
-
-def slugify(text: str) -> str:
-    """Convert string into a normalized URL and filename friendly slug."""
-    text = text.lower().strip()
-    text = re.sub(r"[^\w\s-]", "", text)
-    return re.sub(r"[-\s]+", "-", text)
+    try:
+        for key in keys:
+            current = current[key]
+        return current
+    except (KeyError, TypeError):
+        return default
