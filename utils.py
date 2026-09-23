@@ -1,45 +1,36 @@
-import time
 import logging
-import functools
-from typing import Callable, Any, Type, Tuple
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
+def safe_execute(func: Callable, *args: Any, default: Any = None, **kwargs: Any) -> Any:
+    """Execute function with fallback for edge cases."""
+    try:
+        return func(*args, **kwargs)
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
+        logger.error(f"Execution failed: {e}")
+        return default
+    except Exception as e:
+        logger.critical(f"Unexpected system failure: {e}")
+        raise
 
-def retry(
-    max_retries: int = 3,
-    delay: float = 1.0,
-    backoff: float = 2.0,
-    exceptions: Tuple[Type[BaseException], ...] = (Exception,)
-) -> Callable:
-    """
-    Decorator that retries a function call with exponential backoff.
+def robust_int_conversion(value: Any, fallback: int = 0) -> int:
+    """Convert input to integer with robust error handling."""
+    try:
+        return int(float(value))
+    except (ValueError, TypeError):
+        return fallback
 
-    :param max_retries: Maximum number of retry attempts.
-    :param delay: Initial delay between retries in seconds.
-    :param backoff: Multiplicative factor applied to delay after each failure.
-    :param exceptions: Tuple of exception classes to catch and retry on.
-    """
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            current_delay = delay
-            for attempt in range(1, max_retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as err:
-                    if attempt == max_retries:
-                        logger.error(
-                            f"Execution failed for '{func.__name__}' after {max_retries} attempts: {err}"
-                        )
-                        raise
+def validate_collection_input(data: Any, min_size: int = 1) -> bool:
+    """Check if collection satisfies basic size constraints."""
+    try:
+        return len(data) >= min_size
+    except (TypeError, AttributeError):
+        return False
 
-                    logger.warning(
-                        f"Attempt {attempt}/{max_retries} failed for '{func.__name__}': {err}. "
-                        f"Retrying in {current_delay:.2f}s..."
-                    )
-                    time.sleep(current_delay)
-                    current_delay *= backoff
-
-        return wrapper
-    return decorator
+if __name__ == "__main__":
+    # Example usage for verification
+    assert robust_int_conversion("10.5") == 10
+    assert robust_int_conversion(None, fallback=-1) == -1
+    assert validate_collection_input([1, 2]) is True
+    assert validate_collection_input(None) is False
