@@ -1,31 +1,33 @@
-import typing
+from typing import Final, Dict, Any
 
-# Configuration settings for data processing utilities
-DEFAULT_ENCODING: str = 'utf-8'
-CHUNK_SIZE: int = 1024 * 64  # 64KB buffer size
+# Configuration constants for the python-utils-24 package
+DEFAULT_TIMEOUT: Final[int] = 30
+MAX_RETRIES: Final[int] = 3
 
-# Supported file extensions for general data handling
-SUPPORTED_FORMATS: typing.Tuple[str, ...] = ('.json', '.csv', '.yaml', '.txt')
+# Status codes for internal processing
+STATUS_SUCCESS: Final[str] = "success"
+STATUS_FAILURE: Final[str] = "failure"
 
-# Standard timeout values in seconds
-NETWORK_TIMEOUT: int = 30
-OPERATION_RETRY_LIMIT: int = 3
-
-# Path constants for environment mapping
-LOG_DIR: str = './logs'
-TEMP_DIR: str = './tmp'
-
-def get_buffer_size(multiplier: int = 1) -> int:
-    """Return scaled buffer size for memory allocation."""
-    return CHUNK_SIZE * multiplier
-
-def is_supported(filename: str) -> bool:
-    """Check if the file format is allowed."""
-    return filename.lower().endswith(SUPPORTED_FORMATS)
-
-# Mapping for environment-specific execution modes
-ENV_MODES: typing.Dict[str, str] = {
-    'dev': 'development',
-    'prod': 'production',
-    'test': 'testing'
+# Default application settings mapping
+DEFAULT_CONFIG: Final[Dict[str, Any]] = {
+    "logging_level": "INFO",
+    "encoding": "utf-8",
+    "buffer_size": 4096
 }
+
+def get_app_version() -> str:
+    """
+    Returns the current application version string.
+
+    Returns:
+        str: The version identifier for the package.
+    """
+    return "1.0.0"
+
+class AppConstants:
+    """
+    Collection of operational constants for utility modules.
+    """
+    ENV_PROD: str = "production"
+    ENV_DEV: str = "development"
+    LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
