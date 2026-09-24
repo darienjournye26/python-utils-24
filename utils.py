@@ -1,36 +1,36 @@
 import logging
-from typing import Any, Callable, Optional
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def safe_execute(func: Callable, *args: Any, default: Any = None, **kwargs: Any) -> Any:
-    """Execute function with fallback for edge cases."""
-    try:
-        return func(*args, **kwargs)
-    except (ValueError, TypeError, AttributeError, KeyError) as e:
-        logger.error(f"Execution failed: {e}")
-        return default
-    except Exception as e:
-        logger.critical(f"Unexpected system failure: {e}")
-        raise
+def validate_input(data: dict) -> bool:
+    """Ensures dictionary contains required keys with valid types."""
+    required = {'id': int, 'payload': str}
+    for key, expected_type in required.items():
+        if key not in data or not isinstance(data[key], expected_type):
+            return False
+    return True
 
-def robust_int_conversion(value: Any, fallback: int = 0) -> int:
-    """Convert input to integer with robust error handling."""
-    try:
-        return int(float(value))
-    except (ValueError, TypeError):
-        return fallback
+def process_stream(data_stream: list):
+    """Main processing loop with integrated input validation."""
+    for entry in data_stream:
+        try:
+            if not isinstance(entry, dict):
+                raise ValueError(f"Invalid format: expected dict, got {type(entry)}")
+            
+            if not validate_input(entry):
+                logger.warning(f"Validation failed for entry: {entry}")
+                continue
+            
+            # Simulate core business logic execution
+            result = entry['payload'].upper()
+            logger.info(f"Processed id {entry['id']}: {result}")
+            
+        except (ValueError, TypeError) as e:
+            logger.error(f"Processing error: {e}")
+        except Exception as e:
+            logger.critical(f"Unexpected system failure: {e}")
 
-def validate_collection_input(data: Any, min_size: int = 1) -> bool:
-    """Check if collection satisfies basic size constraints."""
-    try:
-        return len(data) >= min_size
-    except (TypeError, AttributeError):
-        return False
-
-if __name__ == "__main__":
-    # Example usage for verification
-    assert robust_int_conversion("10.5") == 10
-    assert robust_int_conversion(None, fallback=-1) == -1
-    assert validate_collection_input([1, 2]) is True
-    assert validate_collection_input(None) is False
+if __name__ == '__main__':
+    sample_data = [{'id': 1, 'payload': 'hello'}, {'id': 'wrong', 'payload': 123}, {'id': 2, 'payload': 'world'}]
+    process_stream(sample_data)
