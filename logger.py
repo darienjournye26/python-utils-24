@@ -1,40 +1,33 @@
 import logging
-import sys
-from typing import Optional
+from logging.handlers import RotatingFileHandler
+import os
 
-def setup_logger(name: str, log_file: Optional[str] = None) -> logging.Logger:
-    """Configures a logger with robust error handling for file IO."""
+def setup_logger(name='app_logger', log_file='app.log', level=logging.INFO):
+    """Configures a rotating file logger."""
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logger.setLevel(level)
 
-    # Clear existing handlers to prevent duplicate logs
+    # Prevent duplicate handlers if function is called multiple times
     if logger.hasHandlers():
         logger.handlers.clear()
 
-    # Add console output
-    console_handler = logging.StreamHandler(sys.stdout)
+    # File rotation: 5MB per file, keep 3 backups
+    handler = RotatingFileHandler(
+        log_file, 
+        maxBytes=5*1024*1024, 
+        backupCount=3
+    )
+    
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    handler.setFormatter(formatter)
+    
+    logger.addHandler(handler)
+    
+    # Optional: Stream handler for console output
+    console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
-
-    # Add file output with edge case handling
-    if log_file:
-        try:
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(formatter)
-            logger.addHandler(file_handler)
-        except (OSError, PermissionError) as e:
-            logger.error(f"Failed to initialize log file {log_file}: {e}")
-            # Fallback to console only if file access fails
-            pass
-            
+    
     return logger
-
-def safe_log(logger: logging.Logger, message: str, level: str = 'info') -> None:
-    """Logs messages safely avoiding attribute errors."""
-    log_func = getattr(logger, level.lower(), logger.info)
-    try:
-        log_func(message)
-    except Exception as e:
-        # Ensure logging failures do not crash the application
-        sys.stderr.write(f"Logging failed: {e}\n")
