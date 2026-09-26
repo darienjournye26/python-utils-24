@@ -1,32 +1,35 @@
-import logging
+import functools
+import time
+from typing import Callable, Any, Dict
 
-def process_data(payload):
-    """Validate and process input data within the main loop."""
-    if not isinstance(payload, dict):
-        raise ValueError(f"Expected dict, got {type(payload).__name__}")
-    
-    required_keys = {'id', 'value'}
-    if not required_keys.issubset(payload.keys()):
-        missing = required_keys - payload.keys()
-        raise KeyError(f"Missing required keys: {missing}")
-        
-    if not isinstance(payload['value'], (int, float)):
-        raise TypeError("Value must be a number")
+# Cache for expensive computation results to optimize core operations
+_memoization_cache: Dict[tuple, Any] = {}
 
-    # Process the validated input
-    return f"Processed ID {payload['id']}: {payload['value'] * 2}"
+def memoize(func: Callable) -> Callable:
+    """Decorator for caching function return values based on arguments."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _memoization_cache:
+            _memoization_cache[key] = func(*args, **kwargs)
+        return _memoization_cache[key]
+    return wrapper
 
-def main_loop(data_stream):
-    """Main execution loop with input validation."""
-    logger = logging.getLogger(__name__)
-    for entry in data_stream:
-        try:
-            result = process_data(entry)
-            print(result)
-        except (ValueError, KeyError, TypeError) as e:
-            logger.error(f"Skipping invalid entry {entry}: {e}")
-            continue
+@memoize
+def heavy_computation(data: int) -> int:
+    """Simulated intensive task optimized via memoization."""
+    time.sleep(1)
+    return data * data
 
-if __name__ == "__main__":
-    data = [{'id': 1, 'value': 10}, {'id': 2, 'value': 'invalid'}, {'id': 3, 'value': 20}]
-    main_loop(data)
+class DataProcessor:
+    """Performance-tuned processor for data streams."""
+    def __init__(self, multiplier: int = 1):
+        self.multiplier = multiplier
+
+    def process_batch(self, items: list[int]) -> list[int]:
+        """Batch processing using list comprehension for speed."""
+        return [i * self.multiplier for i in items]
+
+def clear_cache() -> None:
+    """Manual cache invalidation for memory management."""
+    _memoization_cache.clear()
