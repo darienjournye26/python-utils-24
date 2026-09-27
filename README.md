@@ -1,48 +1,39 @@
 # python-utils-24
 
-A curated collection of high-performance Python helper functions designed to streamline repetitive development tasks. This library focuses on simplifying data serialization, file system operations, and execution timing to improve overall code maintainability.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+A lightweight, zero-dependency Python library designed to streamline common data manipulation, file handling, and logging tasks. It provides a highly optimized set of helper functions to accelerate daily development workflows without bloating your environment.
 
 ## Features
 
-*   **Robust File Operations:** Advanced wrappers for safe directory traversal, recursive file hashing, and automated cleanup routines.
-*   **Performance Benchmarking:** Integrated decorator-based timers to measure execution duration and memory consumption with millisecond precision.
-*   **Data Validation:** Lightweight utility suite for sanitizing dictionary inputs and enforcing schema consistency across complex JSON structures.
-*   **Logging Enhancements:** Pre-configured handlers that enable color-coded terminal output and structured file rotation with zero boilerplate.
+* **Smart File I/O:** Safe JSON and CSV wrappers with automatic directory creation and reliable fallback mechanisms.
+* **Decorators for Devs:** Production-ready retry logic and execution-time profilers for instant performance debugging.
+* **Collection Helpers:** Fast deep-merging of nested dictionaries and memory-efficient generator-based list chunking.
+* **Ready-to-use Logging:** A pre-configured console and file logger requiring only a single line of setup.
 
 ## Installation
 
-Install the package directly via pip:
+Install the package directly from PyPI:
 
 ```bash
 pip install python-utils-24
 ```
 
-To include development dependencies for testing, run:
+## Quick Start
 
-```bash
-pip install python-utils-24[dev]
-```
-
-## Basic Usage
-
-Import the required modules to access the utility suite. Below is an example of using the performance timer to profile a function:
+Here is a quick example of how to load nested configurations safely and log the output:
 
 ```python
-from pyutils24 import timer, file_manager
+from python_utils_24.io import safe_load_json
+from python_utils_24.logger import setup_logger
 
-@timer
-def process_data(data):
-    # Perform intensive data transformation
-    return [x**2 for x in data]
+logger = setup_logger("AppLogger")
 
-# Use file utilities to verify paths safely
-if file_manager.exists('data/input.json'):
-    result = process_data([1, 2, 3, 4, 5])
-    print(f"Task completed successfully.")
+# Safely load JSON config, returning a default fallback if the file is missing or corrupt
+config = safe_load_json("config/settings.json", default={"port": 8080})
+logger.info(f"Server started on port: {config['port']}")
 ```
 
 ## License
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. See `LICENSE` for
