@@ -1,27 +1,30 @@
+import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-class ConfigManager:
-    """Handles application configuration loading and access."""
+class ConfigLoader:
+    """Utility for loading JSON configurations with defaults."""
+    
+    def __init__(self, default_config: Dict[str, Any]):
+        self.defaults = default_config
 
-    def __init__(self, defaults: Optional[Dict[str, Any]] = None) -> None:
-        self._config: Dict[str, Any] = defaults or {}
+    def load(self, filepath: str) -> Dict[str, Any]:
+        """Loads config from file or returns defaults if missing."""
+        if not os.path.exists(filepath):
+            return self.defaults
+        
+        try:
+            with open(filepath, 'r') as f:
+                user_config = json.load(f)
+            
+            # Merge user config over defaults
+            config = self.defaults.copy()
+            config.update(user_config)
+            return config
+        except (json.JSONDecodeError, IOError):
+            return self.defaults
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieve a configuration value by key."""
-        return self._config.get(key, default)
-
-    def load_from_env(self, prefix: str = "APP_") -> None:
-        """Populate config from environment variables."""
-        for key, value in os.environ.items():
-            if key.startswith(prefix):
-                clean_key = key[len(prefix):].lower()
-                self._config[clean_key] = value
-
-    def update(self, new_data: Dict[str, Any]) -> None:
-        """Update current configuration with new data."""
-        self._config.update(new_data)
-
-    def all(self) -> Dict[str, Any]:
-        """Return a copy of the configuration dictionary."""
-        return self._config.copy()
+def get_config(filepath: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """Functional wrapper for config loading."""
+    loader = ConfigLoader(defaults)
+    return loader.load(filepath)
