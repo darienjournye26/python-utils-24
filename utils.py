@@ -1,29 +1,26 @@
-import time
-import functools
-import logging
-from typing import Callable, Any
+from typing import Any, Dict, List, Union
 
-logger = logging.getLogger(__name__)
+def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """Flattens nested dictionary into single level structure."""
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-def retry(max_attempts: int = 3, delay: float = 1.0, exceptions: tuple = (Exception,)): 
-    """Decorator for retrying network operations with exponential backoff."""
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception = None
-            current_delay = delay
-            
-            for attempt in range(max_attempts):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    last_exception = e
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
-                    if attempt < max_attempts - 1:
-                        time.sleep(current_delay)
-                        current_delay *= 2
-            
-            logger.error(f"All {max_attempts} attempts failed. Raising last exception.")
-            raise last_exception
-        return wrapper
-    return decorator
+def sanitize_list(data: List[Any]) -> List[Any]:
+    """Removes None values and strips strings from list."""
+    return [
+        item.strip() if isinstance(item, str) else item 
+        for item in data 
+        if item is not None
+    ]
+
+def batch_process(data: List[Any], batch_size: int) -> List[List[Any]]:
+    """Splits large list into manageable smaller chunks."""
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive")
+    return [data[i:i + batch_size] for i in range(0, len(data), batch_size)]
