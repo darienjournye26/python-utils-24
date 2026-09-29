@@ -1,35 +1,60 @@
-import functools
 import time
-from typing import Callable, Any, Dict
+from threading import Lock
+from typing import Callable, Any, Dict, Tuple
 
-# Cache for expensive computation results to optimize core operations
-_memoization_cache: Dict[tuple, Any] = {}
+class ThreadSafeTTLCache:
+    """A thread-safe in-memory cache with TTL support for performance optimization."""
 
-def memoize(func: Callable) -> Callable:
-    """Decorator for caching function return values based on arguments."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in _memoization_cache:
-            _memoization_cache[key] = func(*args, **kwargs)
-        return _memoization_cache[key]
-    return wrapper
+    def __init__(self, ttl: float = 60.0, max_size: int = 2048):
+        self._ttl = ttl
+        self._max_size = max_size
+        self._store: Dict[Any, Tuple[float, Any]] = {}
+        self._lock = Lock()
 
-@memoize
-def heavy_computation(data: int) -> int:
-    """Simulated intensive task optimized via memoization."""
-    time.sleep(1)
-    return data * data
+    def get(self, key: Any) -> Any:
+        with self._lock:
+            if key not in self._store:
+                return None
+            expiry, val = self._store[key]
+            if time.monotonic() > expiry:
+                del self._store[key]
+                return None
+            return val
 
-class DataProcessor:
-    """Performance-tuned processor for data streams."""
-    def __init__(self, multiplier: int = 1):
-        self.multiplier = multiplier
+    def set(self, key: Any, value: Any) -> None:
+        with self._lock:
+            now = time.monotonic()
+            if len(self._store) >= self._max_size:
+                # Clean expired keys first to free up space
+                expired = [k for k, (exp, _) in self._store.items() if now > exp]
+                for k in expired:
+                    del self._store[k]
+                # If still over limit, pop oldest item
+                if len(self._store) >= self._max_size:
+                    oldest_key = next(iter(self._store))
+                    del self._store[oldest_key]
+            self._store[key] = (now + self._ttl, value)
 
-    def process_batch(self, items: list[int]) -> list[int]:
-        """Batch processing using list comprehension for speed."""
-        return [i * self.multiplier for i in items]
+def memoize(ttl: float = 60.0, max_size: int = 2048):
+    """Decorator to cache heavy function results with automatic TTL expiration."""
+    cache = ThreadSafeTTLCache(ttl=ttl, max_size=max_size)
 
-def clear_cache() -> None:
-    """Manual cache invalidation for memory management."""
-    _memoization_cache.clear()
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Create a cache-safe representation of arguments
+            cache_key = (args, tuple(sorted(kwargs.items())))
+            try:
+                hash(cache_key)
+            except TypeError:
+                # Uncacheable arguments fallback directly to computation
+                return func(*args, **kwargs)
+
+            cached_res = cache.get(cache_key)
+            if cached_res is not None:
+                return cached_res
+
+            result = func(*args, **kwargs)
+            cache.set(cache_key, result)
+            return result
+        return wrapper
+    return decorator
