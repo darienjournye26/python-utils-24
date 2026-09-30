@@ -1,30 +1,38 @@
-from typing import Any, Dict, Optional
+import re
+from typing import Any, Optional
 
-def validate_schema(data: Any, schema: Dict[str, type], strict: bool = False) -> bool:
-    """Validates dictionary structure against a type schema."""
-    if not isinstance(data, dict):
-        return False
+class ValidationError(Exception):
+    """Custom exception for input validation failures."""
+    pass
 
-    if strict and set(data.keys()) != set(schema.keys()):
-        return False
+def validate_input(data: Any, schema: dict) -> bool:
+    """
+    Validates data against a simple dictionary schema.
+    Expected schema keys: 'type', 'pattern' (optional).
+    """
+    if not isinstance(data, schema.get('type', object)):
+        raise ValidationError(f"Expected {schema['type']}, got {type(data)}")
 
-    for key, expected_type in schema.items():
-        value = data.get(key)
-        if value is None or not isinstance(value, expected_type):
-            return False
+    if 'pattern' in schema and isinstance(data, str):
+        if not re.match(schema['pattern'], data):
+            raise ValidationError(f"Data {data} does not match required pattern")
 
     return True
 
-def sanitize_input(data: str, max_length: int = 255) -> str:
-    """Cleans strings for general input handling."""
-    if not isinstance(data, str):
-        return ""
-    return data.strip()[:max_length]
+def process_loop(items: list, schema: dict):
+    """
+    Main processing loop with integrated input validation.
+    """
+    for item in items:
+        try:
+            if validate_input(item, schema):
+                print(f"Processing: {item}")
+        except ValidationError as e:
+            print(f"Skipping invalid item: {e}")
+            continue
 
-def is_non_empty(data: Optional[Any]) -> bool:
-    """Checks if container or string has content."""
-    if data is None:
-        return False
-    if isinstance(data, (str, list, dict, set)):
-        return len(data) > 0
-    return True
+if __name__ == '__main__':
+    # Example usage schema
+    target_schema = {'type': str, 'pattern': r'^[A-Z]{3}-\d{3}$'}
+    sample_data = ['ABC-123', 'invalid', 'XYZ-789']
+    process_loop(sample_data, target_schema)
