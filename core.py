@@ -1,60 +1,39 @@
+import functools
 import time
-from threading import Lock
-from typing import Callable, Any, Dict, Tuple
+from typing import Callable, Any, Dict
 
-class ThreadSafeTTLCache:
-    """A thread-safe in-memory cache with TTL support for performance optimization."""
+# Cache for storing expensive function results
+_CACHE: Dict[tuple, Any] = {}
 
-    def __init__(self, ttl: float = 60.0, max_size: int = 2048):
-        self._ttl = ttl
-        self._max_size = max_size
-        self._store: Dict[Any, Tuple[float, Any]] = {}
-        self._lock = Lock()
+def memoize(func: Callable) -> Callable:
+    """Decorator to cache function results based on arguments."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _CACHE:
+            _CACHE[key] = func(*args, **kwargs)
+        return _CACHE[key]
+    return wrapper
 
-    def get(self, key: Any) -> Any:
-        with self._lock:
-            if key not in self._store:
-                return None
-            expiry, val = self._store[key]
-            if time.monotonic() > expiry:
-                del self._store[key]
-                return None
-            return val
+def batch_process(data: list, chunk_size: int = 100) -> list:
+    """Memory-efficient processing of large datasets."""
+    for i in range(0, len(data), chunk_size):
+        yield data[i:i + chunk_size]
 
-    def set(self, key: Any, value: Any) -> None:
-        with self._lock:
-            now = time.monotonic()
-            if len(self._store) >= self._max_size:
-                # Clean expired keys first to free up space
-                expired = [k for k, (exp, _) in self._store.items() if now > exp]
-                for k in expired:
-                    del self._store[k]
-                # If still over limit, pop oldest item
-                if len(self._store) >= self._max_size:
-                    oldest_key = next(iter(self._store))
-                    del self._store[oldest_key]
-            self._store[key] = (now + self._ttl, value)
+class PerformanceTracker:
+    """Context manager for monitoring execution time."""
+    def __init__(self, name: str):
+        self.name = name
+        self.start = 0.0
 
-def memoize(ttl: float = 60.0, max_size: int = 2048):
-    """Decorator to cache heavy function results with automatic TTL expiration."""
-    cache = ThreadSafeTTLCache(ttl=ttl, max_size=max_size)
+    def __enter__(self):
+        self.start = time.perf_counter()
+        return self
 
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Create a cache-safe representation of arguments
-            cache_key = (args, tuple(sorted(kwargs.items())))
-            try:
-                hash(cache_key)
-            except TypeError:
-                # Uncacheable arguments fallback directly to computation
-                return func(*args, **kwargs)
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        elapsed = time.perf_counter() - self.start
+        print(f"[PERF] {self.name}: {elapsed:.4f}s")
 
-            cached_res = cache.get(cache_key)
-            if cached_res is not None:
-                return cached_res
-
-            result = func(*args, **kwargs)
-            cache.set(cache_key, result)
-            return result
-        return wrapper
-    return decorator
+def clear_cache() -> None:
+    """Reset global cache to free memory."""
+    _CACHE.clear()
