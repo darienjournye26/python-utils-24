@@ -1,25 +1,50 @@
-import time
-import functools
+"""Custom exceptions and safe execution handlers for edge cases."""
+
 import logging
-from typing import Callable, Any, Type, Tuple
+from typing import Any, Callable, Optional, Type, TypeVar
 
 logger = logging.getLogger(__name__)
 
-def retry(exceptions: Tuple[Type[Exception], ...], tries: int = 3, delay: float = 1.0, backoff: float = 2.0):
-    """Decorator for retrying functions on network errors."""
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            mtries, mdelay = tries, delay
-            while mtries > 1:
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    msg = f"{e}. Retrying in {mdelay} seconds..."
-                    logger.warning(msg)
-                    time.sleep(mdelay)
-                    mtries -= 1
-                    mdelay *= backoff
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
+T = TypeVar("T")
+
+
+class BaseUtilError(Exception):
+    """Base exception class for all python-utils-24 operations."""
+
+    pass
+
+
+class ValidationError(BaseUtilError):
+    """Raised when input data validation fails edge case checks."""
+
+    pass
+
+
+class ResourceNotFoundError(BaseUtilError):
+    """Raised when a required key, file, or resource is missing."""
+
+    pass
+
+
+class ProcessingError(BaseUtilError):
+    """Raised when an internal operation fails unexpectedly."""
+
+    pass
+
+
+def safe_execute(
+    func: Callable[..., T],
+    *args: Any,
+    default: Optional[T] = None,
+    expected_exceptions: Type[Exception] = Exception,
+    **kwargs: Any,
+) -> Optional[T]:
+    """Execute a callable safely, returning a default value on expected errors."""
+    try:
+        return func(*args, **kwargs)
+    except expected_exceptions as err:
+        logger.warning("Handled expected exception during %s: %s", func.__name__, err)
+        return default
+    except Exception as err:
+        logger.error("Unexpected error caught during %s: %s", func.__name__, err)
+        raise ProcessingError(f"Operation '{func.__name__}' failed: {err}") from err
