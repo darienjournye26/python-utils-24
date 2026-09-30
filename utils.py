@@ -1,26 +1,67 @@
-from typing import Any, Dict, List, Union
+from typing import Any, Hashable, Sequence, Union
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """Flattens nested dictionary into single level structure."""
-    items = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
+def get_nested_value(
+    data: Any,
+    path: Union[str, Sequence[Hashable]],
+    default: Any = None,
+    separator: str = "."
+) -> Any:
+    """
+    Safely retrieve nested values from mixed dict/list structures.
+
+    Handles edge cases like out-of-bound indices, type mismatches,
+    invalid keys, and non-container objects smoothly.
+    """
+    if not path:
+        return data if data is not None else default
+
+    # Normalize path keys
+    if isinstance(path, str):
+        keys = path.split(separator) if separator else [path]
+    else:
+        keys = list(path)
+
+    current = data
+    for key in keys:
+        if current is None:
+            return default
+
+        # Handle dictionary access
+        if isinstance(current, dict):
+            try:
+                if key in current:
+                    current = current[key]
+                else:
+                    return default
+            except TypeError:
+                # Key is not hashable
+                return default
+
+        # Handle sequence access (list/tuple)
+        elif isinstance(current, (list, tuple)):
+            try:
+                idx = int(key)
+                if -len(current) <= idx < len(current):
+                    current = current[idx]
+                else:
+                    return default
+            except (ValueError, TypeError):
+                return default
+
+        # Handle non-container nodes
         else:
-            items.append((new_key, v))
-    return dict(items)
+            return default
 
-def sanitize_list(data: List[Any]) -> List[Any]:
-    """Removes None values and strips strings from list."""
-    return [
-        item.strip() if isinstance(item, str) else item 
-        for item in data 
-        if item is not None
-    ]
+    return current
 
-def batch_process(data: List[Any], batch_size: int) -> List[List[Any]]:
-    """Splits large list into manageable smaller chunks."""
-    if batch_size <= 0:
-        raise ValueError("batch_size must be positive")
-    return [data[i:i + batch_size] for i in range(0, len(data), batch_size)]
+
+def safe_convert(value: Any, target_type: type, default: Any = None) -> Any:
+    """
+    Safely convert value to target_type, returning default on any failure.
+    """
+    if value is None:
+        return default
+    try:
+        return target_type(value)
+    except (ValueError, TypeError):
+        return default
