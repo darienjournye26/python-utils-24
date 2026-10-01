@@ -1,50 +1,28 @@
-"""Custom exceptions and safe execution handlers for edge cases."""
+class UtilsError(Exception):
+    """Base exception for python-utils-24 operations."""
 
-import logging
-from typing import Any, Callable, Optional, Type, TypeVar
+class ConfigurationError(UtilsError):
+    """Raised when configuration requirements are not met."""
 
-logger = logging.getLogger(__name__)
+class ValidationError(UtilsError):
+    """Raised when input data fails validation checks."""
 
-T = TypeVar("T")
+class ExecutionError(UtilsError):
+    """Raised when a primary operation fails to complete."""
 
+def raise_if_none(value, message: str = "Value cannot be None"): 
+    """Utility for raising ValidationError on null inputs."""
+    if value is None:
+        raise ValidationError(message)
 
-class BaseUtilError(Exception):
-    """Base exception class for all python-utils-24 operations."""
+def format_exception(e: Exception) -> str:
+    """Standardized formatting for caught exceptions."""
+    return f"[{type(e).__name__}] {str(e)}"
 
-    pass
-
-
-class ValidationError(BaseUtilError):
-    """Raised when input data validation fails edge case checks."""
-
-    pass
-
-
-class ResourceNotFoundError(BaseUtilError):
-    """Raised when a required key, file, or resource is missing."""
-
-    pass
-
-
-class ProcessingError(BaseUtilError):
-    """Raised when an internal operation fails unexpectedly."""
-
-    pass
-
-
-def safe_execute(
-    func: Callable[..., T],
-    *args: Any,
-    default: Optional[T] = None,
-    expected_exceptions: Type[Exception] = Exception,
-    **kwargs: Any,
-) -> Optional[T]:
-    """Execute a callable safely, returning a default value on expected errors."""
+def safe_execute(func, *args, **kwargs):
+    """Decorator pattern for catching broad operation errors."""
     try:
         return func(*args, **kwargs)
-    except expected_exceptions as err:
-        logger.warning("Handled expected exception during %s: %s", func.__name__, err)
-        return default
-    except Exception as err:
-        logger.error("Unexpected error caught during %s: %s", func.__name__, err)
-        raise ProcessingError(f"Operation '{func.__name__}' failed: {err}") from err
+    except Exception as e:
+        formatted = format_exception(e)
+        raise ExecutionError(f"Operation failed: {formatted}") from e
