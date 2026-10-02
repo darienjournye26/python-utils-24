@@ -1,53 +1,54 @@
-"""Data processing handler with input validation."""
-
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Union
 
 
-def validate_record(record: Dict[str, Any]) -> Tuple[bool, str]:
-    """Validate a single data record before processing.
-    
-    Returns a tuple of (is_valid, error_message).
+def get_by_path(
+    data: Union[Dict[str, Any], List[Any]],
+    path: str,
+    delimiter: str = ".",
+    default: Any = None,
+) -> Any:
+    """Retrieve a nested value from a dict or list using a delimited path.
+
+    Example:
+        get_by_path({'a': {'b': [10, 20]}}, 'a.b.1') -> 20
     """
-    if not isinstance(record, dict):
-        return False, "Record must be a dictionary"
-    
-    required_fields = ["id", "action", "payload"]
-    for field in required_fields:
-        if field not in record:
-            return False, f"Missing required field: {field}"
-            
-    if not isinstance(record["id"], (int, str)) or not str(record["id"]).strip():
-        return False, "Field 'id' must be a non-empty string or integer"
-        
-    if not isinstance(record["payload"], dict):
-        return False, "Field 'payload' must be a dictionary"
-        
-    return True, ""
+    if not path:
+        return data
+
+    parts = path.split(delimiter)
+    current = data
+
+    for part in parts:
+        if isinstance(current, dict):
+            if part in current:
+                current = current[part]
+            else:
+                return default
+        elif isinstance(current, list):
+            try:
+                index = int(part)
+                current = current[index]
+            except (ValueError, IndexError):
+                return default
+        else:
+            return default
+
+    return current
 
 
-def process_batch(records: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Process a batch of records with strict input validation in the main loop."""
-    results: Dict[str, List[Dict[str, Any]]] = {"successful": [], "failed": []}
+def flatten_dict(
+    d: Dict[str, Any], parent_key: str = "", delimiter: str = "."
+) -> Dict[str, Any]:
+    """Flatten a nested dictionary into a single-level dictionary.
 
-    for index, record in enumerate(records):
-        # Validate record structure and types before processing
-        is_valid, error_msg = validate_record(record)
-        if not is_valid:
-            results["failed"].append({
-                "index": index,
-                "record": record,
-                "reason": error_msg
-            })
-            continue
-
-        # Process valid record
-        record_id = record["id"]
-        action_type = record["action"]
-        
-        results["successful"].append({
-            "id": record_id,
-            "status": "processed",
-            "action": action_type
-        })
-
-    return results
+    Example:
+        flatten_dict({'a': {'b': 1}}) -> {'a.b': 1}
+    """
+    items: List[tuple] = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{delimiter}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, delimiter=delimiter).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
