@@ -1,33 +1,41 @@
-import os
-import logging
-from typing import Any, Dict, Optional
+import time
+import random
+from functools import wraps
+from typing import Callable, Any, Tuple, Type
 
-logger = logging.getLogger(__name__)
+def retry(
+    exceptions: Tuple[Type[Exception], ...] = (Exception,),
+    tries: int = 3,
+    delay: float = 1.0,
+    backoff: float = 2.0,
+    jitter: bool = True
+) -> Callable:
+    """
+    Decorator for retrying a function with exponential backoff and jitter.
 
-def sanitize_environment(env_vars: list) -> Dict[str, str]:
-    """Extract and validate requested environment variables."""
-    sanitized = {}
-    for key in env_vars:
-        value = os.getenv(key)
-        if value:
-            sanitized[key] = value.strip()
-    return sanitized
-
-def ensure_directory(path: str) -> bool:
-    """Verification of directory existence and creation."""
-    try:
-        if not os.path.exists(path):
-            os.makedirs(path, exist_ok=True)
-            logger.info(f"Directory created: {path}")
-        return True
-    except OSError as e:
-        logger.error(f"Directory creation failed: {e}")
-        return False
-
-def format_data_dict(data: Dict[str, Any]) -> Dict[str, str]:
-    """String conversion for dictionary values."""
-    return {k: str(v) for k, v in data.items() if v is not None}
-
-def get_safe_env(key: str, default: Optional[str] = None) -> str:
-    """Environment lookup with fallback defaults."""
-    return os.getenv(key, default or "")
+    :param exceptions: Tuple of exceptions to catch and retry on.
+    :param tries: Total number of attempts.
+    :param delay: Initial delay between retries in seconds.
+    :param backoff: Multiplier applied to delay after each failure.
+    :param jitter: If True, introduces randomness to delay to prevent thundering herd.
+    """
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            attempt_delay = delay
+            for attempt in range(1, tries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    if attempt == tries:
+                        raise e
+                    
+                    # Calculate next delay with optional jitter
+                    current_delay = attempt_delay
+                    if jitter:
+                        current_delay *= random.uniform(0.5, 1.5)
+                    
+                    time.sleep(current_delay)
+                    attempt_delay *= backoff
+        return wrapper
+    return decorator
