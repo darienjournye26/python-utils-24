@@ -1,54 +1,69 @@
-import logging
-from typing import Any, Dict, Generator, List, Tuple
-
-logger = logging.getLogger("python-utils-24.processor")
+import json
+from typing import Any, Dict, List, Optional, Union
 
 
-class BatchProcessor:
-    """Processes batch inputs with strict validation on each record."""
+class ProcessingError(Exception):
+    """Custom exception raised when data transformation fails."""
+    pass
 
-    def __init__(self, required_keys: List[str] = None):
-        self.required_keys = required_keys or ["id", "action", "payload"]
 
-    def validate_record(self, record: Any) -> Tuple[bool, str]:
-        """Validates a single record structure and types."""
-        if not isinstance(record, dict):
-            return False, "Record must be a dictionary"
+def safe_get_nested(data: Any, keys: List[Union[str, int]], default: Optional[Any] = None) -> Any:
+    """Safely extract nested dictionary or list items handling index and key errors."""
+    if not isinstance(keys, (list, tuple)):
+        raise TypeError("Keys argument must be a list or tuple of keys/indices")
 
-        for key in self.required_keys:
-            if key not in record:
-                return False, f"Missing required key: '{key}'"
-
-        if not isinstance(record["id"], (int, str)) or not str(record["id"]).strip():
-            return False, "Key 'id' must be a non-empty string or integer"
-
-        if not isinstance(record["payload"], dict):
-            return False, "Key 'payload' must be a dictionary"
-
-        return True, ""
-
-    def process_queue(self, items: List[Any]) -> Generator[Dict[str, Any], None, None]:
-        """Main processing loop with input validation safety rails."""
-        for index, item in enumerate(items):
-            is_valid, error_msg = self.validate_record(item)
-            if not is_valid:
-                logger.warning(
-                    f"Skipping invalid item at index {index}: {error_msg}"
-                )
-                continue
-
+    current = data
+    for key in keys:
+        if current is None:
+            return default
+        if isinstance(current, dict) and isinstance(key, str):
+            current = current.get(key, default)
+        elif isinstance(current, (list, tuple)) and isinstance(key, int):
             try:
-                # Standardize action key and extract payload keys for downstream use
-                processed_payload = {
-                    f"processed_{k}": v for k, v in item["payload"].items()
-                }
-                yield {
-                    "id": item["id"],
-                    "action": str(item["action"]).lower().strip(),
-                    "payload": processed_payload,
-                    "status": "success",
-                }
-            except Exception as exc:
-                logger.error(
-                    f"Processing failure for item {item.get('id', index)}: {exc}"
-                )
+                current = current[key]
+            except IndexError:
+                return default
+        else:
+            return default
+    return current
+
+
+def parse_and_coerce(
+    data_str: str,
+    target_type: type = dict,
+    fallback: Optional[Any] = None
+) -> Any:
+    """Parse JSON string with fallback handling for malformed input and unexpected types."""
+    if not isinstance(data_str, str):
+        if fallback is not None:
+            return fallback
+        raise TypeError(f"Expected str input, got {type(data_str).__name__}")
+
+    stripped = data_str.strip()
+    if not stripped:
+        return fallback
+
+    try:
+        parsed = json.loads(stripped)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return fallback
+
+    if target_type and not isinstance(parsed, target_type):
+        return fallback
+
+    return parsed
+
+
+def safe_divide_metrics(numerator: Any, denominator: Any, precision: int = 4) -> float:
+    """Calculate division while safely handling zero division and non-numeric inputs."""
+    try:
+        num = float(numerator)
+        den = float(denominator)
+        if den == 0.0 or num != num or den != den:
+            return 0.0
+        result = num / den
+        if result == float('inf') or result == float('-inf'):
+            return 0.0
+        return round(result, precision)
+    except (ValueError, TypeError):
+        return 0.0
