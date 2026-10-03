@@ -1,69 +1,47 @@
-import json
-from typing import Any, Dict, List, Optional, Union
+"""Data processing module with input validation mechanisms."""
+
+import logging
+from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 
-class ProcessingError(Exception):
-    """Custom exception raised when data transformation fails."""
-    pass
+def validate_item(item: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+    """Validate input payload structure and field values."""
+    if not isinstance(item, dict):
+        return False, "Item must be a dictionary"
+
+    required_fields = ["id", "action", "value"]
+    for field in required_fields:
+        if field not in item:
+            return False, f"Missing required field: {field}"
+
+    if not isinstance(item["id"], (int, str)) or not str(item["id"]).strip():
+        return False, "Field 'id' must be a non-empty string or integer"
+
+    if not isinstance(item["value"], (int, float)) or item["value"] < 0:
+        return False, "Field 'value' must be a non-negative number"
+
+    return True, None
 
 
-def safe_get_nested(data: Any, keys: List[Union[str, int]], default: Optional[Any] = None) -> Any:
-    """Safely extract nested dictionary or list items handling index and key errors."""
-    if not isinstance(keys, (list, tuple)):
-        raise TypeError("Keys argument must be a list or tuple of keys/indices")
+def process_batch(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Main processing loop with input validation for item batches."""
+    processed_results = []
 
-    current = data
-    for key in keys:
-        if current is None:
-            return default
-        if isinstance(current, dict) and isinstance(key, str):
-            current = current.get(key, default)
-        elif isinstance(current, (list, tuple)) and isinstance(key, int):
-            try:
-                current = current[key]
-            except IndexError:
-                return default
-        else:
-            return default
-    return current
+    for index, raw_item in enumerate(items):
+        is_valid, error_msg = validate_item(raw_item)
+        if not is_valid:
+            logger.warning("Skipping invalid item at index %d: %s", index, error_msg)
+            continue
 
+        # Process valid item safely after validation
+        result = {
+            "id": raw_item["id"],
+            "action": str(raw_item["action"]).upper(),
+            "processed_value": round(float(raw_item["value"]) * 1.15, 2),
+            "status": "success",
+        }
+        processed_results.append(result)
 
-def parse_and_coerce(
-    data_str: str,
-    target_type: type = dict,
-    fallback: Optional[Any] = None
-) -> Any:
-    """Parse JSON string with fallback handling for malformed input and unexpected types."""
-    if not isinstance(data_str, str):
-        if fallback is not None:
-            return fallback
-        raise TypeError(f"Expected str input, got {type(data_str).__name__}")
-
-    stripped = data_str.strip()
-    if not stripped:
-        return fallback
-
-    try:
-        parsed = json.loads(stripped)
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return fallback
-
-    if target_type and not isinstance(parsed, target_type):
-        return fallback
-
-    return parsed
-
-
-def safe_divide_metrics(numerator: Any, denominator: Any, precision: int = 4) -> float:
-    """Calculate division while safely handling zero division and non-numeric inputs."""
-    try:
-        num = float(numerator)
-        den = float(denominator)
-        if den == 0.0 or num != num or den != den:
-            return 0.0
-        result = num / den
-        if result == float('inf') or result == float('-inf'):
-            return 0.0
-        return round(result, precision)
-    except (ValueError, TypeError):
-        return 0.0
+    return processed_results
