@@ -2,33 +2,32 @@ import json
 import os
 from typing import Any, Dict
 
-def load_config(filepath: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+def load_config(file_path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Loads configuration from a JSON file with provided fallback defaults.
+    Loads configuration from JSON file, merging with defaults.
+    Returns the merged configuration dictionary.
     """
     config = defaults.copy()
-    
-    if not os.path.exists(filepath):
+
+    if not os.path.exists(file_path):
         return config
 
     try:
-        with open(filepath, 'r') as f:
-            user_config = json.load(f)
-            if isinstance(user_config, dict):
-                config.update(user_config)
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+            config.update(data)
     except (json.JSONDecodeError, IOError):
         pass
 
     return config
 
-def get_env_config(prefix: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Overrides configuration keys with matching environment variables.
-    """
-    config = defaults.copy()
-    for key in config.keys():
-        env_key = f"{prefix}_{key.upper()}"
-        value = os.getenv(env_key)
-        if value is not None:
-            config[key] = value
-    return config
+if __name__ == '__main__':
+    # Example usage for python-utils-24
+    default_settings = {
+        'host': '127.0.0.1',
+        'port': 8080,
+        'debug': False
+    }
+    
+    current_config = load_config('settings.json', default_settings)
+    print(f"Loaded configuration: {current_config}")
