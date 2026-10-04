@@ -1,25 +1,32 @@
-import time
-import functools
 import logging
-from typing import Callable, Any
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def retry_network_call(max_retries: int = 3, delay: float = 1.0):
-    """Decorator to retry network functions on failure."""
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception = None
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    last_exception = e
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}")
-                    time.sleep(delay * (2 ** attempt))
-            
-            logger.error(f"Final attempt failed after {max_retries} retries")
-            raise last_exception
-        return wrapper
-    return decorator
+def validate_input(data):
+    """Ensures input is a non-empty dictionary."""
+    if not isinstance(data, dict) or not data:
+        raise ValueError("input must be a non-empty dictionary")
+    return True
+
+def process_stream(data_stream):
+    """
+    Main processing loop for utility operations with validation.
+    """
+    results = []
+    for entry in data_stream:
+        try:
+            validate_input(entry)
+            # Perform business logic here
+            processed_val = entry.get('value', 0) * 2
+            results.append(processed_val)
+            logger.info(f"Processed: {processed_val}")
+        except (ValueError, TypeError) as e:
+            logger.error(f"Skipping invalid entry {entry}: {e}")
+            continue
+    return results
+
+if __name__ == "__main__":
+    sample_data = [{'value': 10}, "invalid", {'value': 20}, {}]
+    output = process_stream(sample_data)
+    print(f"Final processing result: {output}")
