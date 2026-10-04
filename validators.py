@@ -1,38 +1,60 @@
+"""Data validation helpers with robust edge case handling."""
+
 import re
 from typing import Any, Optional
 
-class ValidationError(Exception):
-    """Custom exception for input validation failures."""
-    pass
 
-def validate_input(data: Any, schema: dict) -> bool:
-    """
-    Validates data against a simple dictionary schema.
-    Expected schema keys: 'type', 'pattern' (optional).
-    """
-    if not isinstance(data, schema.get('type', object)):
-        raise ValidationError(f"Expected {schema['type']}, got {type(data)}")
+def validate_email(email: Any) -> bool:
+    """Validate email format with type and edge case checks."""
+    if not isinstance(email, str):
+        return False
+    
+    email = email.strip()
+    if not email or len(email) > 254:
+        return False
+        
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return bool(re.match(pattern, email))
 
-    if 'pattern' in schema and isinstance(data, str):
-        if not re.match(schema['pattern'], data):
-            raise ValidationError(f"Data {data} does not match required pattern")
+
+def validate_numeric_range(
+    value: Any, 
+    min_val: Optional[float] = None, 
+    max_val: Optional[float] = None
+) -> bool:
+    """Safely validate numeric bounds, handling string numbers and invalid inputs."""
+    if value is None or isinstance(value, bool):
+        return False
+
+    try:
+        num = float(value)
+    except (ValueError, TypeError, OverflowError):
+        return False
+
+    if min_val is not None and num < min_val:
+        return False
+    if max_val is not None and num > max_val:
+        return False
 
     return True
 
-def process_loop(items: list, schema: dict):
-    """
-    Main processing loop with integrated input validation.
-    """
-    for item in items:
-        try:
-            if validate_input(item, schema):
-                print(f"Processing: {item}")
-        except ValidationError as e:
-            print(f"Skipping invalid item: {e}")
-            continue
 
-if __name__ == '__main__':
-    # Example usage schema
-    target_schema = {'type': str, 'pattern': r'^[A-Z]{3}-\d{3}$'}
-    sample_data = ['ABC-123', 'invalid', 'XYZ-789']
-    process_loop(sample_data, target_schema)
+def validate_dict_depth(data: Any, max_depth: int = 5, _current_depth: int = 1) -> bool:
+    """Check nested dictionary depth to prevent recursion overflow errors."""
+    if not isinstance(data, dict):
+        return True
+        
+    if _current_depth > max_depth:
+        return False
+
+    for value in data.values():
+        if isinstance(value, dict):
+            if not validate_dict_depth(value, max_depth, _current_depth + 1):
+                return False
+        elif isinstance(value, (list, tuple, set)):
+            for item in value:
+                if isinstance(item, dict):
+                    if not validate_dict_depth(item, max_depth, _current_depth + 1):
+                        return False
+
+    return True
