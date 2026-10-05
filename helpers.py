@@ -1,41 +1,46 @@
-import time
-import random
-from functools import wraps
-from typing import Callable, Any, Tuple, Type
+"""General data handling utilities for python-utils-24."""
 
-def retry(
-    exceptions: Tuple[Type[Exception], ...] = (Exception,),
-    tries: int = 3,
-    delay: float = 1.0,
-    backoff: float = 2.0,
-    jitter: bool = True
-) -> Callable:
-    """
-    Decorator for retrying a function with exponential backoff and jitter.
+from typing import Any, Dict, Generator, Iterable, List
 
-    :param exceptions: Tuple of exceptions to catch and retry on.
-    :param tries: Total number of attempts.
-    :param delay: Initial delay between retries in seconds.
-    :param backoff: Multiplier applied to delay after each failure.
-    :param jitter: If True, introduces randomness to delay to prevent thundering herd.
-    """
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            attempt_delay = delay
-            for attempt in range(1, tries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    if attempt == tries:
-                        raise e
-                    
-                    # Calculate next delay with optional jitter
-                    current_delay = attempt_delay
-                    if jitter:
-                        current_delay *= random.uniform(0.5, 1.5)
-                    
-                    time.sleep(current_delay)
-                    attempt_delay *= backoff
-        return wrapper
-    return decorator
+
+def flatten_dict(
+    data: Dict[str, Any], parent_key: str = "", sep: str = "."
+) -> Dict[str, Any]:
+    """Recursively flatten a nested dictionary using key separation."""
+    items: List[tuple[str, Any]] = []
+    for key, value in data.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        if isinstance(value, dict):
+            items.extend(flatten_dict(value, new_key, sep=sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
+
+
+def get_nested(
+    data: Dict[str, Any], path: str, default: Any = None, sep: str = "."
+) -> Any:
+    """Safely retrieve a value from a deeply nested dictionary."""
+    keys = path.split(sep)
+    current = data
+    for key in keys:
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        else:
+            return default
+    return current
+
+
+def chunk_iterable(iterable: Iterable[Any], size: int) -> Generator[List[Any], None, None]:
+    """Yield successive chunks of specified size from an iterable."""
+    if size <= 0:
+        raise ValueError("Chunk size must be greater than zero")
+
+    chunk = []
+    for item in iterable:
+        chunk.append(item)
+        if len(chunk) == size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
