@@ -3,33 +3,35 @@ from typing import Any, Optional, Callable
 
 logger = logging.getLogger(__name__)
 
-def safe_execute(func: Callable, *args: Any, **kwargs: Any) -> Optional[Any]:
-    """Executes a function with graceful error handling for edge cases."""
-    if not callable(func):
-        logger.error("Provided object is not callable")
-        return None
-
+def safe_execute(func: Callable, *args: Any, default: Any = None) -> Any:
+    """Executes a function with error catching for robustness."""
     try:
-        return func(*args, **kwargs)
-    except TypeError as e:
-        logger.error(f"Invalid arguments provided: {e}")
-    except ValueError as e:
-        logger.error(f"Value error during execution: {e}")
+        return func(*args)
+    except (TypeError, ValueError) as e:
+        logger.error(f"Invalid input arguments: {e}")
+        return default
     except Exception as e:
-        logger.critical(f"Unexpected system failure: {e}", exc_info=True)
+        logger.exception(f"Unexpected failure during execution: {e}")
+        return default
+
+def validate_resource_path(path: Optional[str]) -> str:
+    """Validates resource path string to prevent null pointer errors."""
+    if not path:
+        raise ValueError("Resource path cannot be empty or None")
+    if not isinstance(path, str):
+        raise TypeError("Resource path must be a string")
+    return path.strip()
+
+def process_data_batch(data: list) -> list:
+    """Processes a list of items with resilience against malformed entries."""
+    if not isinstance(data, list):
+        return []
     
-    return None
-
-def validate_input(data: Any, expected_type: type) -> bool:
-    """Validates input type and handles null/empty edge cases."""
-    if data is None:
-        return False
-    try:
-        return isinstance(data, expected_type)
-    except Exception:
-        return False
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    result = safe_execute(len, "python-utils-24")
-    print(f"Result: {result}")
+    results = []
+    for item in data:
+        try:
+            processed = str(item).upper()
+            results.append(processed)
+        except Exception:
+            continue
+    return results
