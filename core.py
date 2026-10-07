@@ -1,37 +1,35 @@
-import logging
-from typing import Any, Optional, Callable
+import os
+from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+def get_env(key: str, default: Any = None) -> Any:
+    """Retrieve environment variable with optional default value."""
+    return os.environ.get(key, default)
 
-def safe_execute(func: Callable, *args: Any, default: Any = None) -> Any:
-    """Executes a function with error catching for robustness."""
-    try:
-        return func(*args)
-    except (TypeError, ValueError) as e:
-        logger.error(f"Invalid input arguments: {e}")
-        return default
-    except Exception as e:
-        logger.exception(f"Unexpected failure during execution: {e}")
-        return default
+def flatten_list(nested_list: List[Any]) -> List[Any]:
+    """Recursively flatten a nested list structure."""
+    flat = []
+    for item in nested_list:
+        if isinstance(item, list):
+            flat.extend(flatten_list(item))
+        else:
+            flat.append(item)
+    return flat
 
-def validate_resource_path(path: Optional[str]) -> str:
-    """Validates resource path string to prevent null pointer errors."""
-    if not path:
-        raise ValueError("Resource path cannot be empty or None")
-    if not isinstance(path, str):
-        raise TypeError("Resource path must be a string")
-    return path.strip()
+def chunk_iterable(iterable: List[Any], size: int) -> List[List[Any]]:
+    """Split an iterable into smaller chunks of specific size."""
+    return [iterable[i : i + size] for i in range(0, len(iterable), size)]
 
-def process_data_batch(data: list) -> list:
-    """Processes a list of items with resilience against malformed entries."""
-    if not isinstance(data, list):
-        return []
-    
-    results = []
-    for item in data:
-        try:
-            processed = str(item).upper()
-            results.append(processed)
-        except Exception:
-            continue
-    return results
+def merge_dicts(dict1: Dict, dict2: Dict) -> Dict:
+    """Perform deep merge of two dictionaries."""
+    result = dict1.copy()
+    for key, value in dict2.items():
+        if isinstance(value, dict) and key in result and isinstance(result[key], dict):
+            result[key] = merge_dicts(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+def ensure_directory(path: str) -> None:
+    """Create directory if it does not exist."""
+    if not os.path.exists(path):
+        os.makedirs(path)
