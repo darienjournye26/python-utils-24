@@ -1,60 +1,22 @@
-"""Data validation helpers with robust edge case handling."""
+from typing import Any, Optional, Union
 
-import re
-from typing import Any, Optional
-
-
-def validate_email(email: Any) -> bool:
-    """Validate email format with type and edge case checks."""
-    if not isinstance(email, str):
+def validate_email(email: str) -> bool:
+    """Verify if a string follows standard email format."""
+    if not isinstance(email, str) or "@" not in email:
         return False
-    
-    email = email.strip()
-    if not email or len(email) > 254:
-        return False
-        
-    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-    return bool(re.match(pattern, email))
+    return email.count("@") == 1 and "." in email.split("@")[1]
 
+def validate_range(value: Union[int, float], min_val: float, max_val: float) -> bool:
+    """Check if numeric value resides within defined boundaries."""
+    return min_val <= value <= max_val
 
-def validate_numeric_range(
-    value: Any, 
-    min_val: Optional[float] = None, 
-    max_val: Optional[float] = None
-) -> bool:
-    """Safely validate numeric bounds, handling string numbers and invalid inputs."""
-    if value is None or isinstance(value, bool):
-        return False
+def sanitize_input(data: Any, default: Optional[Any] = None) -> Any:
+    """Clean input data or return provided default value."""
+    if data is None or data == "":
+        return default
+    return str(data).strip()
 
-    try:
-        num = float(value)
-    except (ValueError, TypeError, OverflowError):
-        return False
-
-    if min_val is not None and num < min_val:
-        return False
-    if max_val is not None and num > max_val:
-        return False
-
-    return True
-
-
-def validate_dict_depth(data: Any, max_depth: int = 5, _current_depth: int = 1) -> bool:
-    """Check nested dictionary depth to prevent recursion overflow errors."""
-    if not isinstance(data, dict):
-        return True
-        
-    if _current_depth > max_depth:
-        return False
-
-    for value in data.values():
-        if isinstance(value, dict):
-            if not validate_dict_depth(value, max_depth, _current_depth + 1):
-                return False
-        elif isinstance(value, (list, tuple, set)):
-            for item in value:
-                if isinstance(item, dict):
-                    if not validate_dict_depth(item, max_depth, _current_depth + 1):
-                        return False
-
-    return True
+def is_truthy(value: Any) -> bool:
+    """Determine boolean status of various input types."""
+    normalized = str(value).lower()
+    return normalized in ("true", "1", "t", "y", "yes")
