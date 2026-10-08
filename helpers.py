@@ -1,43 +1,35 @@
-import functools
-import time
-import logging
-from typing import Callable, Any
+import os
+import json
+from typing import Any, Dict, Optional
 
-# Configure logger for core operations
-logger = logging.getLogger(__name__)
+def load_json_file(file_path: str) -> Dict[str, Any]:
+    """Reads and parses a JSON file with error handling."""
+    if not os.path.exists(file_path):
+        return {}
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
 
-def memoize(func: Callable) -> Callable:
-    """Thread-safe cache decorator for intensive calculations."""
-    cache = {}
+def save_json_file(data: Dict[str, Any], file_path: str) -> bool:
+    """Writes a dictionary to a JSON file."""
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+        return True
+    except IOError:
+        return False
 
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        key = (args, frozenset(kwargs.items()))
-        if key not in cache:
-            cache[key] = func(*args, **kwargs)
-        return cache[key]
-    return wrapper
+def get_env_variable(key: str, default: Optional[str] = None) -> str:
+    """Retrieves environment variable or default value."""
+    return os.environ.get(key, default or "")
 
-def time_execution(func: Callable) -> Callable:
-    """Performance monitor for diagnostic timing."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        start_time = time.perf_counter()
-        result = func(*args, **kwargs)
-        duration = time.perf_counter() - start_time
-        logger.debug(f"Execution of {func.__name__} took {duration:.4f}s")
-        return result
-    return wrapper
+def chunk_list(data: list, size: int):
+    """Splits a list into smaller chunks."""
+    for i in range(0, len(data), size):
+        yield data[i:i + size]
 
-def batch_process(items: list, chunk_size: int = 100):
-    """Memory-efficient generator for large dataset chunks."""
-    for i in range(0, len(items), chunk_size):
-        yield items[i:i + chunk_size]
-
-class PerformanceProfiler:
-    """Resource usage tracker for application bottlenecks."""
-    def __init__(self):
-        self.stats = {}
-
-    def record(self, label: str, duration: float):
-        self.stats[label] = self.stats.get(label, 0) + duration
+def sanitize_path(path: str) -> str:
+    """Cleans path strings for safe system operations."""
+    return os.path.normpath(path.strip())
