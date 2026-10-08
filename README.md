@@ -1,39 +1,54 @@
 # python-utils-24
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+A curated collection of production-ready Python utility functions designed to streamline daily development tasks. This library focuses on performance, type safety, and minimizing boilerplate code for common data manipulation and system operations.
 
-A lightweight, zero-dependency Python library designed to streamline common data manipulation, file handling, and logging tasks. It provides a highly optimized set of helper functions to accelerate daily development workflows without bloating your environment.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
-* **Smart File I/O:** Safe JSON and CSV wrappers with automatic directory creation and reliable fallback mechanisms.
-* **Decorators for Devs:** Production-ready retry logic and execution-time profilers for instant performance debugging.
-* **Collection Helpers:** Fast deep-merging of nested dictionaries and memory-efficient generator-based list chunking.
-* **Ready-to-use Logging:** A pre-configured console and file logger requiring only a single line of setup.
+*   **Type-Safe Converters:** Robust functions to handle complex dictionary-to-object mapping and nested data structure serialization.
+*   **Performance Decorators:** Lightweight decorators for memoization, execution timing, and asynchronous retry logic with exponential backoff.
+*   **Path & IO Helpers:** Simplified wrappers for cross-platform file system operations, recursive directory scanning, and bulk file processing.
+*   **Validation Suite:** A compact set of validators for common string patterns, email formats, and custom data constraints.
 
 ## Installation
 
-Install the package directly from PyPI:
+Install the package via pip:
 
 ```bash
 pip install python-utils-24
 ```
 
-## Quick Start
+To include development dependencies for testing and linting:
 
-Here is a quick example of how to load nested configurations safely and log the output:
+```bash
+pip install python-utils-24[dev]
+```
+
+## Basic Usage
+
+Import the utilities directly into your workflow to reduce redundancy:
 
 ```python
-from python_utils_24.io import safe_load_json
-from python_utils_24.logger import setup_logger
+from pyutils24.decorators import time_execution
+from pyutils24.files import get_files_by_extension
 
-logger = setup_logger("AppLogger")
+# Time any function call automatically
+@time_execution
+def process_data(data):
+    return [d.upper() for d in data]
 
-# Safely load JSON config, returning a default fallback if the file is missing or corrupt
-config = safe_load_json("config/settings.json", default={"port": 8080})
-logger.info(f"Server started on port: {config['port']}")
+# Recursively find all log files in a directory
+logs = get_files_by_extension('./logs', 'log')
+
+print(f"Found {len(logs)} log files.")
+process_data(['alpha', 'beta', 'gamma'])
 ```
+
+## Contributing
+
+Contributions are welcome. Please open an issue to discuss proposed changes or submit a pull request for bug fixes. Ensure all new functions include type hints and corresponding tests in the `tests/` directory.
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
