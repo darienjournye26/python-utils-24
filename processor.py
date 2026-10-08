@@ -1,47 +1,62 @@
-"""Data processing module with input validation mechanisms."""
-
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
-logger = logging.getLogger(__name__)
-
-
-def validate_item(item: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
-    """Validate input payload structure and field values."""
-    if not isinstance(item, dict):
-        return False, "Item must be a dictionary"
-
-    required_fields = ["id", "action", "value"]
-    for field in required_fields:
-        if field not in item:
-            return False, f"Missing required field: {field}"
-
-    if not isinstance(item["id"], (int, str)) or not str(item["id"]).strip():
-        return False, "Field 'id' must be a non-empty string or integer"
-
-    if not isinstance(item["value"], (int, float)) or item["value"] < 0:
-        return False, "Field 'value' must be a non-negative number"
-
-    return True, None
+# Configure a basic logger for this module
+logger = logging.getLogger("processor")
 
 
-def process_batch(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Main processing loop with input validation for item batches."""
-    processed_results = []
+class ProcessingError(Exception):
+    """Exception raised when a record fails validation or processing."""
+    pass
 
-    for index, raw_item in enumerate(items):
-        is_valid, error_msg = validate_item(raw_item)
-        if not is_valid:
-            logger.warning("Skipping invalid item at index %d: %s", index, error_msg)
-            continue
 
-        # Process valid item safely after validation
-        result = {
-            "id": raw_item["id"],
-            "action": str(raw_item["action"]).upper(),
-            "processed_value": round(float(raw_item["value"]) * 1.15, 2),
-            "status": "success",
-        }
-        processed_results.append(result)
+class BatchProcessor:
+    """Processes batches of input data with robust input validation."""
 
-    return processed_results
+    def __init__(self, required_fields: List[str]) -> None:
+        self.required_fields = required_fields
+
+    def validate_record(self, record: Dict[str, Any]) -> None:
+        """Validates a single data record against schema requirements."""
+        if not isinstance(record, dict):
+            raise ProcessingError("Record must be a dictionary")
+
+        for field in self.required_fields:
+            if field not in record:
+                raise ProcessingError(f"Missing required field: '{field}'")
+
+            value = record[field]
+            if value is None:
+                raise ProcessingError(f"Field '{field}' cannot be None")
+
+            if isinstance(value, str) and not value.strip():
+                raise ProcessingError(f"Field '{field}' cannot be an empty string")
+
+            if isinstance(value, (int, float)) and value < 0:
+                raise ProcessingError(f"Field '{field}' cannot be negative")
+
+    def process_batch(
+        self, batch: List[Dict[str, Any]]
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Processes a batch of records, separating successful runs from failures."""
+        successful_records = []
+        failed_records = []
+
+        for index, record in enumerate(batch):
+            try:
+                # Input validation step
+                self.validate_record(record)
+
+                # Process the valid record
+                processed_record = record.copy()
+                processed_record["processed"] = True
+                successful_records.append(processed_record)
+
+            except ProcessingError as err:
+                logger.warning("Validation failed at index %d: %s", index, str(err))
+                failed_records.append({"index": index, "data": record, "error": str(err)})
+            except Exception as err:
+                logger.error("Unexpected error at index %d: %s", index, str(err))
+                failed_records.append({"index": index, "data": record, "error": "Unexpected error"})
+
+        return successful_records, failed_records
