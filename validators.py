@@ -1,22 +1,30 @@
-from typing import Any, Optional, Union
+import re
+from typing import Any, Optional
 
-def validate_email(email: str) -> bool:
-    """Verify if a string follows standard email format."""
-    if not isinstance(email, str) or "@" not in email:
+def is_email(value: str) -> bool:
+    """Validate RFC 5322 compliant email string structure."""
+    pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    return bool(re.match(pattern, value))
+
+def is_not_empty(value: Any) -> bool:
+    """Check if input is not None and not an empty container."""
+    if value is None:
         return False
-    return email.count("@") == 1 and "." in email.split("@")[1]
+    if isinstance(value, (str, list, dict, set, tuple)):
+        return len(value) > 0
+    return True
 
-def validate_range(value: Union[int, float], min_val: float, max_val: float) -> bool:
-    """Check if numeric value resides within defined boundaries."""
+def validate_range(value: float, min_val: float, max_val: float) -> bool:
+    """Verify numeric value falls within inclusive boundaries."""
     return min_val <= value <= max_val
 
-def sanitize_input(data: Any, default: Optional[Any] = None) -> Any:
-    """Clean input data or return provided default value."""
-    if data is None or data == "":
+def parse_int(value: Any, default: Optional[int] = None) -> Optional[int]:
+    """Safely attempt string to integer conversion."""
+    try:
+        return int(value)
+    except (ValueError, TypeError):
         return default
-    return str(data).strip()
 
-def is_truthy(value: Any) -> bool:
-    """Determine boolean status of various input types."""
-    normalized = str(value).lower()
-    return normalized in ("true", "1", "t", "y", "yes")
+def is_alphanumeric(value: str) -> bool:
+    """Check if string contains only alphanumeric characters."""
+    return str(value).isalnum()
