@@ -1,29 +1,45 @@
-import logging
-from typing import Any, Dict, Optional
+import time
+import random
+import functools
+from typing import Callable, Any, Optional
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('python-utils-24')
+def retry_network_op(max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    """
+    Decorator to retry network operations with exponential backoff.
+    
+    :param max_attempts: Maximum number of retries.
+    :param delay: Initial delay in seconds.
+    :param backoff: Multiplier for the delay after each failure.
+    """
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            attempts = 0
+            current_delay = delay
+            
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        raise e
+                    
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+            
+        return wrapper
+    return decorator
 
-class DataProcessor:
-    """Core processor for data normalization tasks."""
-    def __init__(self, settings: Optional[Dict[str, Any]] = None):
-        self.settings = settings or {}
+def perform_request(url: str):
+    """Example usage of retry logic for network requests."""
+    print(f"Fetching {url}...")
+    # Simulation of network flakiness
+    if random.random() < 0.7:
+        raise ConnectionError("Temporary network failure")
+    return "Success"
 
-    def sanitize(self, data: str) -> str:
-        """Remove whitespace and force lowercase."""
-        if not isinstance(data, str):
-            return ""
-        return data.strip().lower()
-
-    def process(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform dictionary values using sanitization."""
-        try:
-            return {k: self.sanitize(str(v)) for k, v in payload.items()}
-        except Exception as e:
-            logger.error(f"processing failure: {e}")
-            return {}
-
-def initialize_service(config: Dict[str, Any]) -> DataProcessor:
-    """Factory function for processor initialization."""
-    logger.info("initializing data processor service")
-    return DataProcessor(settings=config)
+# Example usage:
+# @retry_network_op(max_attempts=3)
+# def unstable_fetch():
+#     return perform_request("https://api.example.com")
