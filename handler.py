@@ -1,43 +1,37 @@
-import functools
 import time
+import functools
 import logging
 
-# Configure logger for core operations
 logger = logging.getLogger(__name__)
 
-def memoize_with_expiry(ttl_seconds=300):
-    """Decorator for caching results with time-based invalidation."""
+def with_retry(retries=3, delay=1.0, backoff=2.0):
+    """Decorator to retry network operations with exponential backoff."""
     def decorator(func):
-        cache = {}
-
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            key = (args, frozenset(kwargs.items()))
-            now = time.time()
+            current_delay = delay
+            last_exception = None
             
-            if key in cache:
-                result, timestamp = cache[key]
-                if now - timestamp < ttl_seconds:
-                    return result
+            for attempt in range(1, retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {current_delay}s...")
+                    
+                    if attempt < retries:
+                        time.sleep(current_delay)
+                        current_delay *= backoff
+                    else:
+                        logger.error("Max retries reached.")
             
-            result = func(*args, **kwargs)
-            cache[key] = (result, now)
-            return result
+            raise last_exception
         return wrapper
     return decorator
 
-class DataHandler:
-    """Optimized processing handler for core data operations."""
-    def __init__(self):
-        self._buffer = []
-
-    @memoize_with_expiry(ttl_seconds=60)
-    def process_heavy_computation(self, data_id: int) -> dict:
-        """Simulated expensive operation with caching."""
-        # Simulating processing latency
-        time.sleep(0.5)
-        return {"id": data_id, "status": "processed", "timestamp": time.time()}
-
-    def batch_process(self, items: list) -> list:
-        """List comprehension implementation for efficiency."""
-        return [self.process_heavy_computation(i) for i in items]
+@with_retry(retries=3, delay=2)
+def network_request(url):
+    """Example of a network operation handler."""
+    # Simulating actual network call logic
+    logger.info(f"Fetching data from {url}")
+    return {"status": 200, "data": "sample"}
