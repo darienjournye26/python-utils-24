@@ -1,37 +1,33 @@
-import time
-import functools
+from typing import Any, Callable, Dict, Optional
 import logging
 
 logger = logging.getLogger(__name__)
 
-def with_retry(retries=3, delay=1.0, backoff=2.0):
-    """Decorator to retry network operations with exponential backoff."""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            current_delay = delay
-            last_exception = None
-            
-            for attempt in range(1, retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    last_exception = e
-                    logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {current_delay}s...")
-                    
-                    if attempt < retries:
-                        time.sleep(current_delay)
-                        current_delay *= backoff
-                    else:
-                        logger.error("Max retries reached.")
-            
-            raise last_exception
-        return wrapper
-    return decorator
+class RequestHandler:
+    """Handles incoming requests with optional pre-processing."""
 
-@with_retry(retries=3, delay=2)
-def network_request(url):
-    """Example of a network operation handler."""
-    # Simulating actual network call logic
-    logger.info(f"Fetching data from {url}")
-    return {"status": 200, "data": "sample"}
+    def __init__(self, middleware: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None) -> None:
+        """Initialize handler with an optional transformation middleware."""
+        self.middleware = middleware
+
+    def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Processes the payload and returns the transformed result."""
+        try:
+            if self.middleware:
+                payload = self.middleware(payload)
+            
+            return {"status": "success", "data": payload}
+        except Exception as e:
+            logger.error(f"execution failed: {e}")
+            return {"status": "error", "message": str(e)}
+
+def validate_payload(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Ensures that the required keys are present."""
+    if "id" not in data:
+        raise ValueError("missing required field: id")
+    return data
+
+if __name__ == "__main__":
+    handler = RequestHandler(middleware=validate_payload)
+    result = handler.execute({"id": 1, "value": "test"})
+    print(result)
