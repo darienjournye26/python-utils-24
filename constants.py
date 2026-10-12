@@ -1,33 +1,31 @@
-from typing import Final, Dict, Any
+import os
+import logging
 
-# Configuration constants for the python-utils-24 package
-DEFAULT_TIMEOUT: Final[int] = 30
-MAX_RETRIES: Final[int] = 3
+# Standardized constants for system operations
+DEFAULT_TIMEOUT = 30
+MAX_RETRIES = 3
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 
-# Status codes for internal processing
-STATUS_SUCCESS: Final[str] = "success"
-STATUS_FAILURE: Final[str] = "failure"
+# Custom exit codes for edge case management
+EXIT_SUCCESS = 0
+EXIT_INVALID_CONFIG = 10
+EXIT_NETWORK_FAILURE = 11
+EXIT_TIMEOUT_REACHED = 12
 
-# Default application settings mapping
-DEFAULT_CONFIG: Final[Dict[str, Any]] = {
-    "logging_level": "INFO",
-    "encoding": "utf-8",
-    "buffer_size": 4096
-}
+# Configuration constraints
+MIN_BUFFER_SIZE = 1024
+MAX_BUFFER_SIZE = 65536
 
-def get_app_version() -> str:
-    """
-    Returns the current application version string.
+def get_logger(name):
+    """Configures a standard logger instance for the utility."""
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(LOG_LEVEL)
+    return logger
 
-    Returns:
-        str: The version identifier for the package.
-    """
-    return "1.0.0"
-
-class AppConstants:
-    """
-    Collection of operational constants for utility modules.
-    """
-    ENV_PROD: str = "production"
-    ENV_DEV: str = "development"
-    LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+# Singleton logger instance
+logger = get_logger('python-utils-24')
