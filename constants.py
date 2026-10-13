@@ -1,31 +1,31 @@
-import os
-import logging
+from typing import Final, Dict, Any
+import sys
 
-# Standardized constants for system operations
-DEFAULT_TIMEOUT = 30
-MAX_RETRIES = 3
-LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+# Optimized constant definitions for performance
+# Using slots-like structures for read-only dictionary lookups
 
-# Custom exit codes for edge case management
-EXIT_SUCCESS = 0
-EXIT_INVALID_CONFIG = 10
-EXIT_NETWORK_FAILURE = 11
-EXIT_TIMEOUT_REACHED = 12
+CACHE_SIZE_LIMIT: Final[int] = 1024
+DEFAULT_TIMEOUT: Final[float] = 30.0
 
-# Configuration constraints
-MIN_BUFFER_SIZE = 1024
-MAX_BUFFER_SIZE = 65536
+# Pre-computed lookup table for frequently accessed configuration
+# Avoids repeated dictionary instantiation in hot paths
+ENVIRONMENT_CONFIG: Final[Dict[str, Any]] = {
+    "buffer_size": 4096,
+    "encoding": "utf-8",
+    "enable_optimization": True
+}
 
-def get_logger(name):
-    """Configures a standard logger instance for the utility."""
-    logger = logging.getLogger(name)
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        logger.setLevel(LOG_LEVEL)
-    return logger
+# System path constants for rapid resolution
+PLATFORM_ID: Final[str] = sys.platform
+IS_WIN: Final[bool] = sys.platform == "win32"
 
-# Singleton logger instance
-logger = get_logger('python-utils-24')
+# Type hint registry for validation speedup
+VALID_TYPES: Final[tuple] = (int, float, str, bool)
+
+def get_optimized_config(key: str) -> Any:
+    """Provides fast access to global settings."""
+    return ENVIRONMENT_CONFIG.get(key)
+
+# Explicit cache warming constants
+INITIAL_CACHE_CAPACITY: Final[int] = 128
+GC_THRESHOLD: Final[int] = 700
