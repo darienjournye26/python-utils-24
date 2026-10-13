@@ -2,34 +2,32 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-def setup_logger(name: str, log_file: str = "app.log", level: int = logging.INFO) -> logging.Logger:
-    """Configures a rotating file logger for the application."""
+def setup_logger(name: str, log_file: str, level: int = logging.INFO) -> logging.Logger:
+    """Initializes a rotating file logger."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Prevent duplicate handlers if called multiple times
+    # Ensure directory exists
+    log_dir = os.path.dirname(log_file)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    # Setup rotating handler: 5MB per file, keep 3 backups
+    handler = RotatingFileHandler(
+        log_file, 
+        maxBytes=5 * 1024 * 1024, 
+        backupCount=3
+    )
+
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    handler.setFormatter(formatter)
+
     if not logger.handlers:
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-
-        # Rotate logs at 5MB, keep 3 backups
-        file_handler = RotatingFileHandler(
-            log_file, 
-            maxBytes=5*1024*1024, 
-            backupCount=3
-        )
-        file_handler.setFormatter(formatter)
-
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(formatter)
-
-        logger.addHandler(file_handler)
-        logger.addHandler(stream_handler)
+        logger.addHandler(handler)
 
     return logger
 
-# Example usage for verification
-if __name__ == '__main__':
-    log = setup_logger('main_logger')
-    log.info('Logger initialized successfully')
+# Example instantiation for internal module use
+app_logger = setup_logger("app_logger", "logs/app.log")
