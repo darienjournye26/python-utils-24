@@ -1,33 +1,31 @@
 import logging
 from logging.handlers import RotatingFileHandler
-import os
+from pathlib import Path
 
-def setup_logger(name: str, log_file: str, level: int = logging.INFO) -> logging.Logger:
-    """Initializes a rotating file logger."""
+def setup_logger(name: str, log_file: str = 'app.log', level: int = logging.INFO) -> logging.Logger:
+    """
+    Configures a logger with rotation to prevent disk bloat.
+    """
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Ensure directory exists
-    log_dir = os.path.dirname(log_file)
-    if log_dir and not os.path.exists(log_dir):
-        os.makedirs(log_dir)
+    # Ensure logs directory exists
+    log_path = Path(log_file)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Setup rotating handler: 5MB per file, keep 3 backups
+    # 5MB rotation with 3 backup files
     handler = RotatingFileHandler(
         log_file, 
         maxBytes=5 * 1024 * 1024, 
         backupCount=3
     )
-
+    
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     handler.setFormatter(formatter)
-
+    
     if not logger.handlers:
         logger.addHandler(handler)
-
+        
     return logger
-
-# Example instantiation for internal module use
-app_logger = setup_logger("app_logger", "logs/app.log")
