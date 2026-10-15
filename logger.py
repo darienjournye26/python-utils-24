@@ -1,31 +1,29 @@
 import logging
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
+import sys
+from typing import Optional
 
-def setup_logger(name: str, log_file: str = 'app.log', level: int = logging.INFO) -> logging.Logger:
-    """
-    Configures a logger with rotation to prevent disk bloat.
-    """
+def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    """Configures and returns a standardized console logger."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Ensure logs directory exists
-    log_path = Path(log_file)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # 5MB rotation with 3 backup files
-    handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=5 * 1024 * 1024, 
-        backupCount=3
-    )
-    
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    handler.setFormatter(formatter)
-    
     if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        handler.setFormatter(formatter)
         logger.addHandler(handler)
-        
+
     return logger
+
+def log_exception(logger: logging.Logger, e: Exception, message: Optional[str] = None) -> None:
+    """Logs an exception with an optional context message."""
+    context = f"{message}: " if message else ""
+    logger.error(f"{context}{type(e).__name__}: {str(e)}", exc_info=True)
+
+class LoggerMixin:
+    """Mixin to provide a logger instance to classes."""
+    @property
+    def logger(self) -> logging.Logger:
+        return get_logger(self.__class__.__name__)
