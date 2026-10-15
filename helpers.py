@@ -1,53 +1,36 @@
-from typing import Any, Dict, Generator, Iterable, List, TypeVar
+import os
+import shutil
+from pathlib import Path
+from typing import Union, List
 
-T = TypeVar("T")
+def clean_temp_directories(path: Union[str, Path], extension: str = '.tmp') -> int:
+    """Removes files with specific extension from directory."""
+    target_dir = Path(path)
+    if not target_dir.is_dir():
+        return 0
 
+    count = 0
+    for item in target_dir.glob(f'*{extension}'):
+        try:
+            if item.is_file():
+                item.unlink()
+                count += 1
+        except OSError:
+            continue
+    return count
 
-def deep_merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
-    """Recursively merge dict2 into dict1 without modifying original dictionaries."""
-    result = dict1.copy()
-    for key, value in dict2.items():
-        if (
-            key in result
-            and isinstance(result[key], dict)
-            and isinstance(value, dict)
-        ):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
+def ensure_directory(path: Union[str, Path]) -> None:
+    """Creates directory if it does not exist."""
+    Path(path).mkdir(parents=True, exist_ok=True)
 
+def format_byte_size(size_bytes: int) -> str:
+    """Converts bytes to human readable format."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024:
+            return f"{size_bytes:.2f} {unit}"
+        size_bytes /= 1024
+    return f"{size_bytes:.2f} TB"
 
-def chunk_iterable(iterable: Iterable[T], size: int) -> Generator[List[T], None, None]:
-    """Yield successive chunks of specified size from an iterable."""
-    if size <= 0:
-        raise ValueError("Chunk size must be greater than zero")
-    chunk: List[T] = []
-    for item in iterable:
-        chunk.append(item)
-        if len(chunk) == size:
-            yield chunk
-            chunk = []
-    if chunk:
-        yield chunk
-
-
-def truncate_text(text: str, max_length: int, suffix: str = "...") -> str:
-    """Truncate text to max_length, adding suffix if truncated."""
-    if max_length < len(suffix):
-        raise ValueError("max_length must be at least as long as suffix")
-    if len(text) <= max_length:
-        return text
-    return text[: max_length - len(suffix)] + suffix
-
-
-def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
-    """Flatten nested dictionary into single level dictionary with delimited keys."""
-    items: List[tuple] = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else str(k)
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+def get_directory_tree(path: Union[str, Path]) -> List[str]:
+    """Lists all files in directory recursively."""
+    return [str(p) for p in Path(path).rglob('*') if p.is_file()]
