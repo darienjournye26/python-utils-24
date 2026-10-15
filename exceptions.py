@@ -1,28 +1,36 @@
-class UtilsError(Exception):
-    """Base exception for python-utils-24 operations."""
+class ValidationError(Exception):
+    """Custom exception for input validation failures."""
+    pass
 
-class ConfigurationError(UtilsError):
-    """Raised when configuration requirements are not met."""
+def validate_payload(data: dict, required_keys: list):
+    """Validates that all required keys are present and non-empty.
 
-class ValidationError(UtilsError):
-    """Raised when input data fails validation checks."""
+    Args:
+        data: The dictionary to validate.
+        required_keys: List of keys that must exist in data.
 
-class ExecutionError(UtilsError):
-    """Raised when a primary operation fails to complete."""
+    Raises:
+        ValidationError: If any key is missing or invalid.
+    """
+    if not isinstance(data, dict):
+        raise ValidationError("Payload must be a dictionary")
 
-def raise_if_none(value, message: str = "Value cannot be None"): 
-    """Utility for raising ValidationError on null inputs."""
-    if value is None:
-        raise ValidationError(message)
+    for key in required_keys:
+        if key not in data or data[key] is None:
+            raise ValidationError(f"Missing required field: {key}")
 
-def format_exception(e: Exception) -> str:
-    """Standardized formatting for caught exceptions."""
-    return f"[{type(e).__name__}] {str(e)}"
+def process_main_loop(items: list):
+    """Main processing loop with integrated input validation."""
+    required = ['id', 'value']
+    results = []
 
-def safe_execute(func, *args, **kwargs):
-    """Decorator pattern for catching broad operation errors."""
-    try:
-        return func(*args, **kwargs)
-    except Exception as e:
-        formatted = format_exception(e)
-        raise ExecutionError(f"Operation failed: {formatted}") from e
+    for item in items:
+        try:
+            validate_payload(item, required)
+            # Processing logic continues here
+            results.append(item['value'] * 2)
+        except ValidationError as e:
+            print(f"Skipping invalid item: {e}")
+            continue
+    
+    return results
