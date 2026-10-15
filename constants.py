@@ -1,31 +1,35 @@
-from typing import Final, Dict, Any
 import sys
+from functools import lru_cache
 
-# Optimized constant definitions for performance
-# Using slots-like structures for read-only dictionary lookups
+# Global cache size limit for performance
+CACHE_LIMIT = 128
 
-CACHE_SIZE_LIMIT: Final[int] = 1024
-DEFAULT_TIMEOUT: Final[float] = 30.0
+@lru_cache(maxsize=CACHE_LIMIT)
+def get_system_environment_info() -> dict:
+    """Retrieves cached system environment details to reduce overhead."""
+    return {
+        "python_version": sys.version_info[:3],
+        "platform": sys.platform,
+        "byteorder": sys.byteorder
+    }
 
-# Pre-computed lookup table for frequently accessed configuration
-# Avoids repeated dictionary instantiation in hot paths
-ENVIRONMENT_CONFIG: Final[Dict[str, Any]] = {
-    "buffer_size": 4096,
-    "encoding": "utf-8",
-    "enable_optimization": True
-}
+# Pre-computed format strings to avoid repeated concatenation
+LOG_FORMAT_DEFAULT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-# System path constants for rapid resolution
-PLATFORM_ID: Final[str] = sys.platform
-IS_WIN: Final[bool] = sys.platform == "win32"
+# Performance constants for algorithmic limits
+MAX_RECURSION_DEPTH = 1000
+BUFFER_CHUNK_SIZE = 65536
 
-# Type hint registry for validation speedup
-VALID_TYPES: Final[tuple] = (int, float, str, bool)
+# Immutable sentinel objects for state management
+NOT_SET = object()
+SHUTDOWN_SIGNAL = object()
 
-def get_optimized_config(key: str) -> Any:
-    """Provides fast access to global settings."""
-    return ENVIRONMENT_CONFIG.get(key)
+class PerformanceConfig:
+    """Centralized container for system performance tuning parameters."""
+    def __init__(self, optimize: bool = True):
+        self.enable_fast_math = optimize
+        self.gc_threshold = (700, 10, 10)
 
-# Explicit cache warming constants
-INITIAL_CACHE_CAPACITY: Final[int] = 128
-GC_THRESHOLD: Final[int] = 700
+# Exported singleton instance
+config = PerformanceConfig()
