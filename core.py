@@ -1,45 +1,36 @@
-import time
-import random
-import functools
-from typing import Callable, Any, Optional
+from typing import Any, Dict, List, Union, Optional
 
-def retry_network_op(max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0):
-    """
-    Decorator to retry network operations with exponential backoff.
-    
-    :param max_attempts: Maximum number of retries.
-    :param delay: Initial delay in seconds.
-    :param backoff: Multiplier for the delay after each failure.
-    """
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            attempts = 0
-            current_delay = delay
-            
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    attempts += 1
-                    if attempts >= max_attempts:
-                        raise e
-                    
-                    time.sleep(current_delay)
-                    current_delay *= backoff
-            
-        return wrapper
-    return decorator
+def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """Flatten a nested dictionary with concatenated keys."""
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-def perform_request(url: str):
-    """Example usage of retry logic for network requests."""
-    print(f"Fetching {url}...")
-    # Simulation of network flakiness
-    if random.random() < 0.7:
-        raise ConnectionError("Temporary network failure")
-    return "Success"
+def filter_none(data: Union[List, Dict]) -> Union[List, Dict]:
+    """Recursively remove None values from lists and dictionaries."""
+    if isinstance(data, dict):
+        return {k: filter_none(v) for k, v in data.items() if v is not None}
+    elif isinstance(data, list):
+        return [filter_none(item) for item in data if item is not None]
+    return data
 
-# Example usage:
-# @retry_network_op(max_attempts=3)
-# def unstable_fetch():
-#     return perform_request("https://api.example.com")
+def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
+    """Split a list into smaller chunks of defined size."""
+    if size <= 0:
+        raise ValueError("Chunk size must be positive integer")
+    return [data[i:i + size] for i in range(0, len(data), size)]
+
+def safe_get(data: Dict, path: str, default: Any = None) -> Any:
+    """Access nested dictionary keys using dot notation."""
+    keys = path.split('.')
+    for key in keys:
+        if isinstance(data, dict):
+            data = data.get(key)
+        else:
+            return default
+    return data if data is not None else default
