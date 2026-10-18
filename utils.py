@@ -1,32 +1,35 @@
+import time
+import functools
 import logging
+from typing import Callable, Any, Type, Tuple
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def validate_input(data):
-    """Ensures input is a non-empty dictionary."""
-    if not isinstance(data, dict) or not data:
-        raise ValueError("input must be a non-empty dictionary")
-    return True
+def retry_network_operation(max_attempts: int = 3, delay: float = 1.0, exceptions: Tuple[Type[Exception], ...] = (Exception,)) -> Callable:
+    """Decorator for retrying functions on specific exceptions."""
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_exception = None
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {delay}s...")
+                    if attempt < max_attempts:
+                        time.sleep(delay)
+            
+            logger.error(f"All {max_attempts} attempts failed.")
+            raise last_exception
+        return wrapper
+    return decorator
 
-def process_stream(data_stream):
-    """
-    Main processing loop for utility operations with validation.
-    """
-    results = []
-    for entry in data_stream:
-        try:
-            validate_input(entry)
-            # Perform business logic here
-            processed_val = entry.get('value', 0) * 2
-            results.append(processed_val)
-            logger.info(f"Processed: {processed_val}")
-        except (ValueError, TypeError) as e:
-            logger.error(f"Skipping invalid entry {entry}: {e}")
-            continue
-    return results
-
-if __name__ == "__main__":
-    sample_data = [{'value': 10}, "invalid", {'value': 20}, {}]
-    output = process_stream(sample_data)
-    print(f"Final processing result: {output}")
+def is_reachable(host: str, timeout: int = 5) -> bool:
+    """Check network connectivity with a simple timeout."""
+    import socket
+    try:
+        socket.create_connection((host, 80), timeout=timeout)
+        return True
+    except (socket.timeout, OSError):
+        return False
