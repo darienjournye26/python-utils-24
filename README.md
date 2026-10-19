@@ -1,54 +1,52 @@
 # python-utils-24
 
-A curated collection of production-ready Python utility functions designed to streamline daily development tasks. This library focuses on performance, type safety, and minimizing boilerplate code for common data manipulation and system operations.
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+A curated collection of production-ready Python utility functions designed to streamline daily development tasks. This library focuses on performance, type safety, and minimizing boilerplate code for common engineering challenges.
 
 ## Features
 
-*   **Type-Safe Converters:** Robust functions to handle complex dictionary-to-object mapping and nested data structure serialization.
-*   **Performance Decorators:** Lightweight decorators for memoization, execution timing, and asynchronous retry logic with exponential backoff.
-*   **Path & IO Helpers:** Simplified wrappers for cross-platform file system operations, recursive directory scanning, and bulk file processing.
-*   **Validation Suite:** A compact set of validators for common string patterns, email formats, and custom data constraints.
+*   **Data Transformation:** Robust serialization helpers for nested dictionaries and high-performance JSON processing.
+*   **Time Utilities:** Simplified timezone-aware conversions and human-readable duration formatting.
+*   **File I/O:** Streamlined context managers for batch file processing with built-in checksum verification.
+*   **Type-Safe Helpers:** A set of strict validators and data-sanitization patterns for consistent API request handling.
 
 ## Installation
 
-Install the package via pip:
+Install the package directly from PyPI:
 
 ```bash
 pip install python-utils-24
 ```
 
-To include development dependencies for testing and linting:
+For local development or manual installation, clone the repository and run:
 
 ```bash
-pip install python-utils-24[dev]
+git clone https://github.com/Developer/python-utils-24.git
+cd python-utils-24
+pip install -e .
 ```
 
-## Basic Usage
+## Usage
 
-Import the utilities directly into your workflow to reduce redundancy:
+Easily integrate shared utilities into your existing workflow:
 
 ```python
-from pyutils24.decorators import time_execution
-from pyutils24.files import get_files_by_extension
+from pyutils import time_format, file_manager
 
-# Time any function call automatically
-@time_execution
-def process_data(data):
-    return [d.upper() for d in data]
+# Convert seconds to human-readable strings
+uptime = time_format.to_human(3665) 
+print(f"Server Uptime: {uptime}")
 
-# Recursively find all log files in a directory
-logs = get_files_by_extension('./logs', 'log')
-
-print(f"Found {len(logs)} log files.")
-process_data(['alpha', 'beta', 'gamma'])
+# Safely read and sanitize JSON data
+data = file_manager.read_json("config.json", validate=True)
+print(data.get("api_key"))
 ```
 
 ## Contributing
 
-Contributions are welcome. Please open an issue to discuss proposed changes or submit a pull request for bug fixes. Ensure all new functions include type hints and corresponding tests in the `tests/` directory.
+We welcome contributions! Please open an issue to discuss proposed changes or submit a pull request for existing features. Ensure all new code adheres to the [PEP 8](https://www.python.org/dev/peps/pep-0008/) standard and includes accompanying unit tests.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Distributed under the MIT License. See `LICENSE` for more information.
