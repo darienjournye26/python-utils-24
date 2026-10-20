@@ -1,34 +1,28 @@
 import logging
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
+import sys
+from typing import Optional
 
-def setup_logger(name: str, log_file: str = 'app.log', level: int = logging.INFO) -> logging.Logger:
-    """
-    Configures a logger with file rotation.
-    """
+def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    """Configures and returns a standard logger instance."""
     logger = logging.getLogger(name)
-    logger.setLevel(level)
-
-    # Prevent duplicate handlers if re-initialized
     if not logger.handlers:
-        log_path = Path(log_file)
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # 5MB per file, keep 3 backups
-        handler = RotatingFileHandler(
-            log_path, 
-            maxBytes=5 * 1024 * 1024, 
-            backupCount=3
-        )
-        
+        handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-
+        logger.setLevel(level)
     return logger
 
-if __name__ == '__main__':
-    log = setup_logger('main')
-    log.info('logger initialization successful')
+def log_exception(logger: logging.Logger, message: str, exc: Exception) -> None:
+    """Helper to format and log exceptions consistently."""
+    logger.error(f"{message}: {type(exc).__name__} - {str(exc)}", exc_info=True)
+
+def setup_basic_logging(level: int = logging.INFO) -> None:
+    """Initialize root logging configuration."""
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s [%(levelname)s] %(message)s',
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
