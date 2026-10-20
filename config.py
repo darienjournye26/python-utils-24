@@ -1,44 +1,28 @@
-import json
 import os
-from typing import Any, Dict, Optional
+from typing import Dict, Any, Optional
 
+class ConfigManager:
+    """Handles application configuration loading and access."""
 
-class ConfigLoader:
-    """Loads application configuration with default fallback values and env overrides."""
-
-    def __init__(
-        self, 
-        defaults: Optional[Dict[str, Any]] = None, 
-        env_prefix: str = "APP_"
-    ) -> None:
-        self._defaults = defaults or {}
-        self._config: Dict[str, Any] = self._defaults.copy()
-        self._env_prefix = env_prefix
-
-    def load_from_json(self, filepath: str) -> Dict[str, Any]:
-        """Load settings from a JSON file, merging over defaults."""
-        if os.path.exists(filepath):
-            with open(filepath, "r", encoding="utf-8") as f:
-                file_data = json.load(f)
-                self._config.update(file_data)
-        return self._config
-
-    def load_from_env(self) -> Dict[str, Any]:
-        """Override current config with environment variables matching prefix."""
-        for key, value in os.environ.items():
-            if key.startswith(self._env_prefix):
-                config_key = key[len(self._env_prefix):].lower()
-                self._config[config_key] = value
-        return self._config
+    def __init__(self, defaults: Optional[Dict[str, Any]] = None) -> None:
+        self._config: Dict[str, Any] = defaults or {}
 
     def get(self, key: str, default: Any = None) -> Any:
-        """Retrieve a configuration option with optional fallback."""
+        """Retrieve a configuration value by key."""
         return self._config.get(key, default)
 
-    def set(self, key: str, value: Any) -> None:
-        """Set a specific configuration key manually."""
-        self._config[key] = value
+    def load_from_env(self, prefix: str = "APP_") -> None:
+        """Load configuration values from environment variables."""
+        for key, value in os.environ.items():
+            if key.startswith(prefix):
+                clean_key = key[len(prefix):].lower()
+                self._config[clean_key] = value
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Return a copy of the current configuration dictionary."""
+    def update(self, new_settings: Dict[str, Any]) -> None:
+        """Update configuration with new dictionary data."""
+        self._config.update(new_settings)
+
+    @property
+    def all(self) -> Dict[str, Any]:
+        """Return a copy of the entire configuration."""
         return self._config.copy()
