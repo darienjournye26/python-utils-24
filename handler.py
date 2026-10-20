@@ -1,33 +1,29 @@
-import json
-from typing import Any, Dict, Optional
+import time
+import functools
+import logging
 
-def deep_update(source: Dict[Any, Any], overrides: Dict[Any, Any]) -> Dict[Any, Any]:
-    """Recursively merge two dictionaries."""
-    for key, value in overrides.items():
-        if isinstance(value, dict) and value:
-            source[key] = deep_update(source.get(key, {}), value)
-        else:
-            source[key] = value
-    return source
+logger = logging.getLogger(__name__)
 
-def safe_load_json(file_path: str) -> Optional[Dict[Any, Any]]:
-    """Safe loading and parsing of json files."""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return None
-
-def sanitize_data(data: Any) -> Any:
-    """Convert non-serializable objects to string representations."""
-    if isinstance(data, dict):
-        return {str(k): sanitize_data(v) for k, v in data.items()}
-    if isinstance(data, list):
-        return [sanitize_data(i) for i in data]
-    if isinstance(data, (int, float, str, bool, type(None))):
-        return data
-    return str(data)
-
-def format_as_json(data: Any, indent: int = 4) -> str:
-    """Stringify data into clean json format."""
-    return json.dumps(sanitize_data(data), indent=indent)
+def retry_network_op(retries=3, delay=2, backoff=2):
+    """Decorator for retrying network operations with exponential backoff."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            current_delay = delay
+            last_exception = None
+            
+            for attempt in range(retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    last_exception = e
+                    if attempt == retries:
+                        break
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+            
+            logger.error(f"All {retries + 1} attempts failed for {func.__name__}")
+            raise last_exception
+        return wrapper
+    return decorator
