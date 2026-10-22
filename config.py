@@ -1,28 +1,34 @@
+import json
 import os
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 
-class ConfigManager:
-    """Handles application configuration loading and access."""
+def load_config(file_path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Loads configuration from a JSON file, merging with provided defaults.
+    Returns the combined dictionary.
+    """
+    config = defaults.copy()
 
-    def __init__(self, defaults: Optional[Dict[str, Any]] = None) -> None:
-        self._config: Dict[str, Any] = defaults or {}
+    if not os.path.exists(file_path):
+        return config
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieve a configuration value by key."""
-        return self._config.get(key, default)
+    try:
+        with open(file_path, 'r') as f:
+            user_config = json.load(f)
+            if isinstance(user_config, dict):
+                config.update(user_config)
+    except (json.JSONDecodeError, IOError):
+        pass
 
-    def load_from_env(self, prefix: str = "APP_") -> None:
-        """Load configuration values from environment variables."""
-        for key, value in os.environ.items():
-            if key.startswith(prefix):
-                clean_key = key[len(prefix):].lower()
-                self._config[clean_key] = value
+    return config
 
-    def update(self, new_settings: Dict[str, Any]) -> None:
-        """Update configuration with new dictionary data."""
-        self._config.update(new_settings)
-
-    @property
-    def all(self) -> Dict[str, Any]:
-        """Return a copy of the entire configuration."""
-        return self._config.copy()
+def save_config(file_path: str, config: Dict[str, Any]) -> bool:
+    """
+    Saves current configuration to a JSON file.
+    """
+    try:
+        with open(file_path, 'w') as f:
+            json.dump(config, f, indent=4)
+        return True
+    except IOError:
+        return False
