@@ -1,35 +1,42 @@
-import sys
-from functools import lru_cache
+from typing import Final, Dict, Any
 
-# Global cache size limit for performance
-CACHE_LIMIT = 128
+# Configuration settings for system components
+DEFAULT_TIMEOUT: Final[float] = 30.0
+MAX_RETRIES: Final[int] = 3
 
-@lru_cache(maxsize=CACHE_LIMIT)
-def get_system_environment_info() -> dict:
-    """Retrieves cached system environment details to reduce overhead."""
-    return {
-        "python_version": sys.version_info[:3],
-        "platform": sys.platform,
-        "byteorder": sys.byteorder
-    }
+# Status codes for internal processing
+STATUS_SUCCESS: Final[str] = 'success'
+STATUS_FAILURE: Final[str] = 'failure'
 
-# Pre-computed format strings to avoid repeated concatenation
-LOG_FORMAT_DEFAULT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+# Default application schema mappings
+DEFAULT_SETTINGS: Final[Dict[str, Any]] = {
+    'debug': False,
+    'environment': 'production',
+    'version': '1.0.0'
+}
 
-# Performance constants for algorithmic limits
-MAX_RECURSION_DEPTH = 1000
-BUFFER_CHUNK_SIZE = 65536
+def get_app_settings() -> Dict[str, Any]:
+    """
+    Retrieve the default application configuration dictionary.
 
-# Immutable sentinel objects for state management
-NOT_SET = object()
-SHUTDOWN_SIGNAL = object()
+    Returns:
+        Dict[str, Any]: A copy of the default application settings.
+    """
+    return DEFAULT_SETTINGS.copy()
 
-class PerformanceConfig:
-    """Centralized container for system performance tuning parameters."""
-    def __init__(self, optimize: bool = True):
-        self.enable_fast_math = optimize
-        self.gc_threshold = (700, 10, 10)
+class AppConstants:
+    """
+    Container class for centralized application constants.
+    """
+    API_VERSION: Final[str] = 'v1'
+    HEADER_KEY: Final[str] = 'X-App-ID'
 
-# Exported singleton instance
-config = PerformanceConfig()
+    @staticmethod
+    def get_version_info() -> str:
+        """
+        Return the current API version identifier.
+
+        Returns:
+            str: The API version string.
+        """
+        return AppConstants.API_VERSION
