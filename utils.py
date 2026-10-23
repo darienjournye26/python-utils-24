@@ -1,35 +1,42 @@
-import time
-import functools
 import logging
-from typing import Callable, Any, Type, Tuple
+from typing import Any, Optional, Callable
 
 logger = logging.getLogger(__name__)
 
-def retry_network_operation(max_attempts: int = 3, delay: float = 1.0, exceptions: Tuple[Type[Exception], ...] = (Exception,)) -> Callable:
-    """Decorator for retrying functions on specific exceptions."""
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception = None
-            for attempt in range(1, max_attempts + 1):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    last_exception = e
-                    logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {delay}s...")
-                    if attempt < max_attempts:
-                        time.sleep(delay)
-            
-            logger.error(f"All {max_attempts} attempts failed.")
-            raise last_exception
-        return wrapper
-    return decorator
-
-def is_reachable(host: str, timeout: int = 5) -> bool:
-    """Check network connectivity with a simple timeout."""
-    import socket
+def safe_execute(func: Callable, *args: Any, default: Any = None) -> Any:
+    """
+    executes a function with error handling for edge cases
+    """
     try:
-        socket.create_connection((host, 80), timeout=timeout)
-        return True
-    except (socket.timeout, OSError):
-        return False
+        return func(*args)
+    except (TypeError, ValueError) as e:
+        logger.error(f"invalid input data provided to {func.__name__}: {e}")
+        return default
+    except Exception as e:
+        logger.critical(f"unexpected failure in {func.__name__}: {e}")
+        return default
+
+def robust_int_conversion(value: Any, fallback: int = 0) -> int:
+    """
+    safely converts input to integer with error fallback
+    """
+    try:
+        if value is None:
+            return fallback
+        return int(value)
+    except (ValueError, TypeError):
+        return fallback
+
+def dict_get_nested(data: dict, keys: list, default: Any = None) -> Any:
+    """
+    safely traverses dictionary with missing key handling
+    """
+    current = data
+    try:
+        for key in keys:
+            if not isinstance(current, dict):
+                return default
+            current = current[key]
+        return current if current is not None else default
+    except KeyError:
+        return default
