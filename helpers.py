@@ -1,36 +1,39 @@
 import os
 import shutil
-from pathlib import Path
-from typing import Union, List
+from typing import List, Optional
 
-def clean_temp_directories(path: Union[str, Path], extension: str = '.tmp') -> int:
-    """Removes files with specific extension from directory."""
-    target_dir = Path(path)
-    if not target_dir.is_dir():
-        return 0
-
+def cleanup_temp_files(directory: str, extensions: Optional[List[str]] = None) -> int:
+    """Remove temporary files from specified directory with optional extension filtering."""
     count = 0
-    for item in target_dir.glob(f'*{extension}'):
-        try:
-            if item.is_file():
-                item.unlink()
+    if not os.path.exists(directory):
+        return count
+
+    target_exts = extensions or ['.tmp', '.log', '.bak']
+
+    for entry in os.listdir(directory):
+        path = os.path.join(directory, entry)
+        if os.path.isfile(path):
+            if any(path.endswith(ext) for ext in target_exts):
+                os.remove(path)
                 count += 1
-        except OSError:
-            continue
     return count
 
-def ensure_directory(path: Union[str, Path]) -> None:
-    """Creates directory if it does not exist."""
-    Path(path).mkdir(parents=True, exist_ok=True)
+def clear_directory_contents(directory: str) -> None:
+    """Recursively remove all contents within a directory without deleting the root."""
+    if not os.path.exists(directory):
+        return
 
-def format_byte_size(size_bytes: int) -> str:
-    """Converts bytes to human readable format."""
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if size_bytes < 1024:
-            return f"{size_bytes:.2f} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.2f} TB"
+    for item in os.listdir(directory):
+        path = os.path.join(directory, item)
+        try:
+            if os.path.isfile(path) or os.path.islink(path):
+                os.unlink(path)
+            elif os.path.isdir(path):
+                shutil.rmtree(path)
+        except OSError as e:
+            print(f"Failed to delete {path}: {e}")
 
-def get_directory_tree(path: Union[str, Path]) -> List[str]:
-    """Lists all files in directory recursively."""
-    return [str(p) for p in Path(path).rglob('*') if p.is_file()]
+def ensure_clean_workspace(path: str) -> None:
+    """Reset workspace by removing existing temp files and clearing content."""
+    cleanup_temp_files(path)
+    clear_directory_contents(path)
