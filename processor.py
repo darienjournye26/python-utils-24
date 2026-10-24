@@ -1,53 +1,45 @@
-import logging
-from typing import Any, Dict, List, Tuple
+import functools
+import itertools
+from typing import Any, Callable, Iterable, List, Sequence, TypeVar
 
-logger = logging.getLogger(__name__)
+T = TypeVar("T")
+R = TypeVar("R")
 
 
 class BatchProcessor:
-    """Processes batches of incoming data records with input validation."""
+    """Optimized batch processor using stream chunking and transformation caching."""
 
-    def __init__(self, required_keys: List[str]):
-        self.required_keys = required_keys
+    def __init__(self, batch_size: int = 1000):
+        if batch_size <= 0:
+            raise ValueError("batch_size must be a positive integer")
+        self.batch_size = batch_size
 
-    def validate_record(self, record: Any) -> Tuple[bool, str]:
-        """Validate structure and content of a single input record."""
-        if not isinstance(record, dict):
-            return False, "Record must be a dictionary"
+    def chunk_iterable(self, iterable: Iterable[T]) -> Iterable[List[T]]:
+        """Yield successive chunks from iterable without memory overhead."""
+        iterator = iter(iterable)
+        while True:
+            chunk = list(itertools.islice(iterator, self.batch_size))
+            if not chunk:
+                break
+            yield chunk
 
-        for key in self.required_keys:
-            if key not in record:
-                return False, f"Missing required field: '{key}'"
-            if record[key] is None:
-                return False, f"Field '{key}' cannot be None"
+    @staticmethod
+    @functools.lru_cache(maxsize=2048)
+    def _memoized_transform(func: Callable[[Any], Any], item: Any) -> Any:
+        """Memoize pure function transformations on individual elements."""
+        return func(item)
 
-        if "age" in record and isinstance(record["age"], (int, float)):
-            if record["age"] < 0 or record["age"] > 150:
-                return False, "Field 'age' out of valid range (0-150)"
+    def process_stream(
+        self, data: Iterable[T], transform: Callable[[T], R], use_cache: bool = False
+    ) -> Iterable[R]:
+        """Process stream in optimized chunks to minimize memory consumption."""
+        for chunk in self.chunk_iterable(data):
+            if use_cache:
+                yield from (self._memoized_transform(transform, item) for item in chunk)
+            else:
+                yield from (transform(item) for item in chunk)
 
-        return True, ""
 
-    def process_batch(self, items: List[Any]) -> Dict[str, Any]:
-        """Process a list of items with validation in the main loop."""
-        processed = []
-        skipped = []
-
-        for index, item in enumerate(items):
-            is_valid, error_msg = self.validate_record(item)
-            if not is_valid:
-                logger.warning(f"Item at index {index} rejected: {error_msg}")
-                skipped.append({"index": index, "item": item, "reason": error_msg})
-                continue
-
-            # Transform or process valid item
-            processed_item = dict(item)
-            processed_item["status"] = "processed"
-            processed.append(processed_item)
-
-        return {
-            "total": len(items),
-            "processed_count": len(processed),
-            "skipped_count": len(skipped),
-            "processed": processed,
-            "skipped": skipped,
-        }
+def fast_flatten(sequences: Sequence[Iterable[T]]) -> List[T]:
+    """Perform efficient flattening of nested iterables using itertools chain."""
+    return list(itertools.chain.from_iterable(sequences))
