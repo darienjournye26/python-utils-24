@@ -1,30 +1,28 @@
-import re
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 
-def is_email(value: str) -> bool:
-    """Validate RFC 5322 compliant email string structure."""
-    pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-    return bool(re.match(pattern, value))
-
-def is_not_empty(value: Any) -> bool:
-    """Check if input is not None and not an empty container."""
-    if value is None:
+def validate_schema(data: Dict[str, Any], schema: Dict[str, type]) -> bool:
+    """Checks if dictionary keys match expected types."""
+    if not isinstance(data, dict):
         return False
-    if isinstance(value, (str, list, dict, set, tuple)):
-        return len(value) > 0
+    
+    for key, expected_type in schema.items():
+        if key not in data or not isinstance(data[key], expected_type):
+            return False
     return True
 
-def validate_range(value: float, min_val: float, max_val: float) -> bool:
-    """Verify numeric value falls within inclusive boundaries."""
+def sanitize_input(value: Any, default: Any = None) -> Any:
+    """Cleans input data by stripping strings and checking emptiness."""
+    if isinstance(value, str):
+        cleaned = value.strip()
+        return cleaned if cleaned else default
+    return value if value is not None else default
+
+def check_bounds(value: float, min_val: float, max_val: float) -> bool:
+    """Verifies numeric values are within specified range."""
     return min_val <= value <= max_val
 
-def parse_int(value: Any, default: Optional[int] = None) -> Optional[int]:
-    """Safely attempt string to integer conversion."""
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
-
-def is_alphanumeric(value: str) -> bool:
-    """Check if string contains only alphanumeric characters."""
-    return str(value).isalnum()
+def ensure_list(item: Any) -> list:
+    """Coerces input into a list for consistent processing."""
+    if item is None:
+        return []
+    return item if isinstance(item, list) else [item]
