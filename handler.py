@@ -1,34 +1,26 @@
-import time
-import functools
-import logging
-from typing import Callable, Any
+from typing import Any, Dict, List, Optional, Union
 
-logger = logging.getLogger(__name__)
+def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """Flattens a nested dictionary into a single-level structure."""
+    items: List[tuple] = []
+    for k, v in data.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-def retry_network_op(retries: int = 3, delay: float = 1.0, backoff: float = 2.0):
-    """Decorator for retrying network operations with exponential backoff."""
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            current_delay = delay
-            for attempt in range(retries):
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    if attempt == retries - 1:
-                        logger.error(f"Final attempt failed: {e}")
-                        raise
-                    
-                    logger.warning(f"Attempt {attempt + 1} failed, retrying in {current_delay}s...")
-                    time.sleep(current_delay)
-                    current_delay *= backoff
-            return None
-        return wrapper
-    return decorator
+def sanitize_data(data: Any, allowed_types: tuple = (str, int, float, bool)) -> Any:
+    """Recursively cleans dictionary or list values to allowed types."""
+    if isinstance(data, dict):
+        return {k: sanitize_data(v, allowed_types) for k, v in data.items() if isinstance(v, allowed_types + (dict, list))}
+    elif isinstance(data, list):
+        return [sanitize_data(item, allowed_types) for item in data if isinstance(item, allowed_types + (dict, list))]
+    return data if isinstance(data, allowed_types) else None
 
-@retry_network_op(retries=3, delay=2.0)
-def fetch_data(url: str):
-    """Example network operation function."""
-    # Simulating network logic here
-    print(f"Fetching from {url}...")
-    raise ConnectionError("Network unreachable")
+def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
+    """Splits a list into smaller chunks of a specified size."""
+    if size <= 0:
+        raise ValueError("Chunk size must be positive")
+    return [data[i:i + size] for i in range(0, len(data), size)]
