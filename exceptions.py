@@ -1,36 +1,48 @@
-class ValidationError(Exception):
-    """Custom exception for input validation failures."""
+"""Custom exceptions module for python-utils-24.
+
+Provides a clean, unified exception hierarchy for package-wide error handling.
+"""
+
+from typing import Any, Dict, Optional
+
+
+class BaseAppError(Exception):
+    """Base exception class for all errors raised by python-utils-24."""
+
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(message)
+        self.message = message
+        self.details = details or {}
+
+    def __str__(self) -> str:
+        if self.details:
+            return f"{self.message} | Details: {self.details}"
+        return self.message
+
+
+class ValidationError(BaseAppError):
+    """Raised when input validation or schema check fails."""
+
+    def __init__(self, message: str, field_name: Optional[str] = None, **kwargs: Any) -> None:
+        details = kwargs.pop("details", {})
+        if field_name:
+            details["field"] = field_name
+        super().__init__(message, details=details)
+
+
+class ProcessingError(BaseAppError):
+    """Raised when an error occurs during core data processing operations."""
+
     pass
 
-def validate_payload(data: dict, required_keys: list):
-    """Validates that all required keys are present and non-empty.
 
-    Args:
-        data: The dictionary to validate.
-        required_keys: List of keys that must exist in data.
+class ConfigurationError(BaseAppError):
+    """Raised when configuration parameters are invalid or missing."""
 
-    Raises:
-        ValidationError: If any key is missing or invalid.
-    """
-    if not isinstance(data, dict):
-        raise ValidationError("Payload must be a dictionary")
+    pass
 
-    for key in required_keys:
-        if key not in data or data[key] is None:
-            raise ValidationError(f"Missing required field: {key}")
 
-def process_main_loop(items: list):
-    """Main processing loop with integrated input validation."""
-    required = ['id', 'value']
-    results = []
+class ResourceNotFoundError(BaseAppError):
+    """Raised when a required file or resource cannot be located."""
 
-    for item in items:
-        try:
-            validate_payload(item, required)
-            # Processing logic continues here
-            results.append(item['value'] * 2)
-        except ValidationError as e:
-            print(f"Skipping invalid item: {e}")
-            continue
-    
-    return results
+    pass
