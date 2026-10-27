@@ -1,36 +1,38 @@
-from typing import Any, Dict, List, Union, Optional
+import time
+import functools
+import logging
+from typing import Callable, Any, Type, Tuple
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """Flatten a nested dictionary with concatenated keys."""
-    items = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+logger = logging.getLogger(__name__)
 
-def filter_none(data: Union[List, Dict]) -> Union[List, Dict]:
-    """Recursively remove None values from lists and dictionaries."""
-    if isinstance(data, dict):
-        return {k: filter_none(v) for k, v in data.items() if v is not None}
-    elif isinstance(data, list):
-        return [filter_none(item) for item in data if item is not None]
-    return data
+def retry_network_operation(
+    max_retries: int = 3, 
+    delay: float = 1.0, 
+    exceptions: Tuple[Type[Exception], ...] = (ConnectionError, TimeoutError)
+):
+    """Decorator to retry network operations on failure."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(
+                        f"Attempt {attempt + 1} failed for {func.__name__}: {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    time.sleep(delay)
+            
+            logger.error(f"All {max_retries} retries exhausted for {func.__name__}")
+            raise last_exception
+        return wrapper
+    return decorator
 
-def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
-    """Split a list into smaller chunks of defined size."""
-    if size <= 0:
-        raise ValueError("Chunk size must be positive integer")
-    return [data[i:i + size] for i in range(0, len(data), size)]
-
-def safe_get(data: Dict, path: str, default: Any = None) -> Any:
-    """Access nested dictionary keys using dot notation."""
-    keys = path.split('.')
-    for key in keys:
-        if isinstance(data, dict):
-            data = data.get(key)
-        else:
-            return default
-    return data if data is not None else default
+@retry_network_operation(max_retries=3, delay=2.0)
+def fetch_data(url: str):
+    """Example network call wrapper."""
+    # Simulating actual network logic
+    pass
