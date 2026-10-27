@@ -1,31 +1,24 @@
-import functools
 import time
-from typing import Callable, Any, Dict
+import functools
+import logging
+from typing import Callable, Any, Type
 
-# Cache for performance optimization of expensive function calls
-_memoization_cache: Dict[tuple, Any] = {}
+logger = logging.getLogger(__name__)
 
-def memoize(func: Callable) -> Callable:
-    """Decorator to cache function results based on arguments."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in _memoization_cache:
-            _memoization_cache[key] = func(*args, **kwargs)
-        return _memoization_cache[key]
-    return wrapper
-
-def batch_process(data: list, chunk_size: int = 100):
-    """Generator to process large datasets in memory-efficient chunks."""
-    for i in range(0, len(data), chunk_size):
-        yield data[i:i + chunk_size]
-
-@memoize
-def heavy_computation(n: int) -> int:
-    """Simulates a resource-intensive operation."""
-    time.sleep(1)
-    return n * n
-
-def clear_cache() -> None:
-    """Manual reset for the internal memoization cache."""
-    _memoization_cache.clear()
+def retry_network_operation(max_attempts: int = 3, delay: float = 1.0, exceptions: tuple = (ConnectionError, TimeoutError)) -> Callable:
+    """Decorator to retry network-related operations on failure."""
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_exception = None
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {delay}s...")
+                    if attempt < max_attempts:
+                        time.sleep(delay)
+            raise last_exception
+        return wrapper
+    return decorator
