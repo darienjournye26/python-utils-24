@@ -1,28 +1,64 @@
-from typing import Any, Optional, Dict
+from typing import Any, Dict, List, Tuple, Type
 
-def validate_schema(data: Dict[str, Any], schema: Dict[str, type]) -> bool:
-    """Checks if dictionary keys match expected types."""
-    if not isinstance(data, dict):
-        return False
-    
-    for key, expected_type in schema.items():
-        if key not in data or not isinstance(data[key], expected_type):
-            return False
-    return True
 
-def sanitize_input(value: Any, default: Any = None) -> Any:
-    """Cleans input data by stripping strings and checking emptiness."""
-    if isinstance(value, str):
-        cleaned = value.strip()
-        return cleaned if cleaned else default
-    return value if value is not None else default
+class ValidationError(Exception):
+    """Raised when input data fails validation rules."""
+    pass
 
-def check_bounds(value: float, min_val: float, max_val: float) -> bool:
-    """Verifies numeric values are within specified range."""
-    return min_val <= value <= max_val
 
-def ensure_list(item: Any) -> list:
-    """Coerces input into a list for consistent processing."""
-    if item is None:
-        return []
-    return item if isinstance(item, list) else [item]
+class RecordValidator:
+    """Validates dictionary records against a defined structural schema."""
+
+    def __init__(self, schema: Dict[str, Tuple[Type, bool]]):
+        # Schema format: {'field_name': (expected_type, is_required)}
+        self.schema = schema
+
+    def validate_record(self, record: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        """Check a single record against schema rules and collect errors."""
+        if not isinstance(record, dict):
+            return False, ["Input record must be a dictionary"]
+
+        errors = []
+        for field, (expected_type, required) in self.schema.items():
+            if field not in record or record[field] is None:
+                if required:
+                    errors.append(f"Missing required field: '{field}'")
+                continue
+
+            val = record[field]
+            if not isinstance(val, expected_type):
+                actual_type = type(val).__name__
+                errors.append(
+                    f"Field '{field}' expected {expected_type.__name__}, got {actual_type}"
+                )
+
+        return len(errors) == 0, errors
+
+
+def validate_processing_loop(
+    dataset: List[Dict[str, Any]],
+    validator: RecordValidator,
+    stop_on_first_error: bool = False
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Runs validation across a stream or sequence of input items.
+    Returns tuples of (valid_records, failed_records_with_details).
+    """
+    valid_records = []
+    failed_records = []
+
+    for index, item in enumerate(dataset):
+        is_valid, errors = validator.validate_record(item)
+        if is_valid:
+            valid_records.append(item)
+        else:
+            failure_info = {
+                "index": index,
+                "item": item,
+                "errors": errors
+            }
+            failed_records.append(failure_info)
+            if stop_on_first_error:
+                break
+
+    return valid_records, failed_records
