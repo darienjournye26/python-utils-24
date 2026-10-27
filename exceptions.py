@@ -1,48 +1,28 @@
-"""Custom exceptions module for python-utils-24.
+class BaseUtilsError(Exception):
+    """Base exception for the python-utils-24 package."""
+    pass
 
-Provides a clean, unified exception hierarchy for package-wide error handling.
-"""
+class ConfigurationError(BaseUtilsError):
+    """Raised when settings are invalid or missing."""
+    pass
 
-from typing import Any, Dict, Optional
+class ValidationError(BaseUtilsError):
+    """Raised when data validation fails."""
+    pass
 
-
-class BaseAppError(Exception):
-    """Base exception class for all errors raised by python-utils-24."""
-
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+class ProcessingError(BaseUtilsError):
+    """Raised during unexpected execution failures."""
+    def __init__(self, message, original_exception=None):
         super().__init__(message)
-        self.message = message
-        self.details = details or {}
+        self.original_exception = original_exception
 
-    def __str__(self) -> str:
-        if self.details:
-            return f"{self.message} | Details: {self.details}"
-        return self.message
-
-
-class ValidationError(BaseAppError):
-    """Raised when input validation or schema check fails."""
-
-    def __init__(self, message: str, field_name: Optional[str] = None, **kwargs: Any) -> None:
-        details = kwargs.pop("details", {})
-        if field_name:
-            details["field"] = field_name
-        super().__init__(message, details=details)
-
-
-class ProcessingError(BaseAppError):
-    """Raised when an error occurs during core data processing operations."""
-
+class ResourceNotFoundError(BaseUtilsError):
+    """Raised when a requested resource is missing."""
     pass
 
-
-class ConfigurationError(BaseAppError):
-    """Raised when configuration parameters are invalid or missing."""
-
-    pass
-
-
-class ResourceNotFoundError(BaseAppError):
-    """Raised when a required file or resource cannot be located."""
-
-    pass
+def handle_exception(e: Exception) -> None:
+    """Standardized exception formatting for logs."""
+    if isinstance(e, BaseUtilsError):
+        print(f"[Utils Error] {e.__class__.__name__}: {e}")
+    else:
+        print(f"[Unexpected Error] {type(e).__name__}: {e}")
