@@ -1,38 +1,41 @@
-import time
-import functools
 import logging
-from typing import Callable, Any, Type, Tuple
+from typing import Any, Optional, Callable
 
 logger = logging.getLogger(__name__)
 
-def retry_network_operation(
-    max_retries: int = 3, 
-    delay: float = 1.0, 
-    exceptions: Tuple[Type[Exception], ...] = (ConnectionError, TimeoutError)
-):
-    """Decorator to retry network operations on failure."""
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            last_exception = None
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    last_exception = e
-                    logger.warning(
-                        f"Attempt {attempt + 1} failed for {func.__name__}: {e}. "
-                        f"Retrying in {delay}s..."
-                    )
-                    time.sleep(delay)
-            
-            logger.error(f"All {max_retries} retries exhausted for {func.__name__}")
-            raise last_exception
-        return wrapper
-    return decorator
+def safe_execute(func: Callable, *args: Any, default: Any = None) -> Any:
+    """
+    Execute a function safely with comprehensive error handling for edge cases.
+    """
+    try:
+        if not callable(func):
+            raise TypeError(f"Expected callable, got {type(func).__name__}")
+        return func(*args)
+    except (ValueError, TypeError, ZeroDivisionError) as e:
+        logger.error(f"Calculation error in {func.__name__}: {e}")
+        return default
+    except Exception as e:
+        logger.critical(f"Unexpected system failure: {e}")
+        return default
 
-@retry_network_operation(max_retries=3, delay=2.0)
-def fetch_data(url: str):
-    """Example network call wrapper."""
-    # Simulating actual network logic
-    pass
+def validate_input(value: Any, expected_type: type) -> bool:
+    """
+    Validate input types to prevent downstream processing errors.
+    """
+    try:
+        return isinstance(value, expected_type)
+    except Exception:
+        return False
+
+def batch_process(data: list, processor: Callable) -> list:
+    """
+    Process collections while ensuring partial failures do not halt execution.
+    """
+    results = []
+    for item in data:
+        try:
+            results.append(processor(item))
+        except Exception as e:
+            logger.warning(f"Skipping item {item} due to error: {e}")
+            continue
+    return results
