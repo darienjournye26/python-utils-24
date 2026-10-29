@@ -1,23 +1,23 @@
 # python-utils-24
 
-A curated collection of production-ready Python utility functions designed to streamline daily development tasks. This library focuses on performance, type safety, and minimizing boilerplate code for common engineering challenges.
+`python-utils-24` is a collection of high-performance utility functions designed to streamline routine Python development tasks. It focuses on reducing boilerplate code for data manipulation, file system operations, and environment management.
 
 ## Features
 
-*   **Data Transformation:** Robust serialization helpers for nested dictionaries and high-performance JSON processing.
-*   **Time Utilities:** Simplified timezone-aware conversions and human-readable duration formatting.
-*   **File I/O:** Streamlined context managers for batch file processing with built-in checksum verification.
-*   **Type-Safe Helpers:** A set of strict validators and data-sanitization patterns for consistent API request handling.
+*   **Robust File Operations:** Enhanced wrappers for recursive directory traversal and intelligent file searching with pattern matching.
+*   **Performance Profiling:** Lightweight decorators for tracking function execution time and memory usage with minimal overhead.
+*   **Data Validation:** A suite of type-safe helpers for parsing complex nested dictionaries and enforcing strict JSON schema integrity.
+*   **System Helpers:** Cross-platform utilities to retrieve system hardware specs and manage persistent environment configurations.
 
 ## Installation
 
-Install the package directly from PyPI:
+Install the package via `pip`:
 
 ```bash
 pip install python-utils-24
 ```
 
-For local development or manual installation, clone the repository and run:
+For development mode:
 
 ```bash
 git clone https://github.com/Developer/python-utils-24.git
@@ -27,26 +27,22 @@ pip install -e .
 
 ## Usage
 
-Easily integrate shared utilities into your existing workflow:
+Import the desired module and utilize the optimized wrappers. Here is a quick example of the profiling decorator:
 
 ```python
-from pyutils import time_format, file_manager
+from pyutils24.decorators import profile_time
 
-# Convert seconds to human-readable strings
-uptime = time_format.to_human(3665) 
-print(f"Server Uptime: {uptime}")
+@profile_time
+def process_data(data):
+    # Simulate heavy workload
+    return [i**2 for i in data]
 
-# Safely read and sanitize JSON data
-data = file_manager.read_json("config.json", validate=True)
-print(data.get("api_key"))
+result = process_data(range(1000000))
+# Output: Function 'process_data' executed in 0.084 seconds.
 ```
-
-## Contributing
-
-We welcome contributions! Please open an issue to discuss proposed changes or submit a pull request for existing features. Ensure all new code adheres to the [PEP 8](https://www.python.org/dev/peps/pep-0008/) standard and includes accompanying unit tests.
 
 ## License
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Distributed under the MIT License. See `LICENSE` for more information.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
