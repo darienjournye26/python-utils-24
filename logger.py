@@ -1,37 +1,41 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
+from typing import Optional
 
-def setup_logger(name: str, log_file: str = 'app.log', level: int = logging.INFO) -> logging.Logger:
+def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     """
-    Configures a logger with rotation to prevent file overflow.
-    Logs are rotated at 5MB, keeping 3 backup files.
+    Creates and configures a standard logger instance.
+
+    Args:
+        name: The name of the logger module.
+        level: The logging threshold level.
+
+    Returns:
+        A configured logging.Logger instance.
     """
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Prevent duplicate handlers if function is called multiple times
     if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
-
-        # Rotating file handler: 5MB max, 3 backups
-        file_handler = RotatingFileHandler(
-            log_file, maxBytes=5 * 1024 * 1024, backupCount=3
-        )
-        file_handler.setFormatter(formatter)
-        
-        # Console output for visibility
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-
-        logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     return logger
 
-if __name__ == "__main__":
-    # Example usage for verification
-    app_logger = setup_logger("demo_logger")
-    app_logger.info("Logger initialization complete")
+def log_exception(logger: logging.Logger, message: str, exc: Optional[Exception] = None) -> None:
+    """
+    Logs an error message along with optional exception details.
+
+    Args:
+        logger: The logger instance to use.
+        message: The custom error message to log.
+        exc: The exception object if applicable.
+    """
+    if exc:
+        logger.error(f"{message}: {str(exc)}", exc_info=True)
+    else:
+        logger.error(message)
