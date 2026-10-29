@@ -1,41 +1,69 @@
-import logging
-from typing import Any, Optional, Callable
+from typing import Any, List, Optional, Union
 
-logger = logging.getLogger(__name__)
 
-def safe_execute(func: Callable, *args: Any, default: Any = None) -> Any:
-    """
-    Execute a function safely with comprehensive error handling for edge cases.
-    """
-    try:
-        if not callable(func):
-            raise TypeError(f"Expected callable, got {type(func).__name__}")
-        return func(*args)
-    except (ValueError, TypeError, ZeroDivisionError) as e:
-        logger.error(f"Calculation error in {func.__name__}: {e}")
-        return default
-    except Exception as e:
-        logger.critical(f"Unexpected system failure: {e}")
+def safe_get(
+    data: Any,
+    key_path: str,
+    default: Any = None,
+    delimiter: str = "."
+) -> Any:
+    """Safely retrieve nested values from data structures with edge case handling."""
+    if not key_path or not isinstance(key_path, str):
         return default
 
-def validate_input(value: Any, expected_type: type) -> bool:
-    """
-    Validate input types to prevent downstream processing errors.
-    """
-    try:
-        return isinstance(value, expected_type)
-    except Exception:
-        return False
+    keys = key_path.split(delimiter)
+    current = data
 
-def batch_process(data: list, processor: Callable) -> list:
-    """
-    Process collections while ensuring partial failures do not halt execution.
-    """
-    results = []
-    for item in data:
-        try:
-            results.append(processor(item))
-        except Exception as e:
-            logger.warning(f"Skipping item {item} due to error: {e}")
-            continue
-    return results
+    for key in keys:
+        if current is None:
+            return default
+
+        if isinstance(current, dict):
+            current = current.get(key, default)
+        elif isinstance(current, (list, tuple)):
+            try:
+                index = int(key)
+                if 0 <= index < len(current):
+                    current = current[index]
+                else:
+                    return default
+            except (ValueError, TypeError):
+                return default
+        else:
+            return default
+
+    return current if current is not default else default
+
+
+def safe_cast(
+    value: Any,
+    target_type: type,
+    default: Any = None
+) -> Any:
+    """Cast a value to a target type with safe error handling for bad inputs."""
+    if value is None:
+        return default
+
+    try:
+        # Edge case: converting float-like strings directly to int
+        if target_type is int and isinstance(value, str):
+            return int(float(value))
+        return target_type(value)
+    except (ValueError, TypeError, OverflowError):
+        return default
+
+
+def safe_divide(
+    numerator: Any,
+    denominator: Any,
+    default: Optional[float] = 0.0
+) -> Optional[float]:
+    """Divide numbers safely while handling zero denominators and bad types."""
+    try:
+        num = float(numerator)
+        den = float(denominator)
+        if den == 0.0:
+            return default
+        return num / den
+    except (ValueError, TypeError, OverflowError):
+        return default
