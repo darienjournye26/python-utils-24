@@ -1,28 +1,29 @@
-class BaseUtilsError(Exception):
-    """Base exception for the python-utils-24 package."""
+class UtilsError(Exception):
+    """Base exception for python-utils-24 package."""
     pass
 
-class ConfigurationError(BaseUtilsError):
-    """Raised when settings are invalid or missing."""
+class ConfigurationError(UtilsError):
+    """Raised when configuration validation fails."""
     pass
 
-class ValidationError(BaseUtilsError):
-    """Raised when data validation fails."""
+class ProcessingError(UtilsError):
+    """Raised when data processing encounters an issue."""
     pass
 
-class ProcessingError(BaseUtilsError):
-    """Raised during unexpected execution failures."""
-    def __init__(self, message, original_exception=None):
-        super().__init__(message)
-        self.original_exception = original_exception
+def raise_if_none(value, name="value"):
+    """Ensures a variable is not None, raises ProcessingError if it is."""
+    if value is None:
+        raise ProcessingError(f"{name} cannot be None")
+    return value
 
-class ResourceNotFoundError(BaseUtilsError):
-    """Raised when a requested resource is missing."""
-    pass
+def validate_condition(condition: bool, message: str):
+    """Checks a condition and raises UtilsError if False."""
+    if not condition:
+        raise UtilsError(message)
 
-def handle_exception(e: Exception) -> None:
-    """Standardized exception formatting for logs."""
-    if isinstance(e, BaseUtilsError):
-        print(f"[Utils Error] {e.__class__.__name__}: {e}")
-    else:
-        print(f"[Unexpected Error] {type(e).__name__}: {e}")
+def safe_execute(func, *args, **kwargs):
+    """Wrapper to catch exceptions and return None on failure."""
+    try:
+        return func(*args, **kwargs)
+    except Exception:
+        return None
