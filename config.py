@@ -1,50 +1,57 @@
 import os
 import json
-from typing import Any, Dict, Optional, Union
+import logging
+from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
+
+
+class ConfigError(Exception):
+    """Custom exception raised for configuration errors."""
+    pass
 
 
 class ConfigManager:
-    """Manages application configuration settings from environment variables and JSON files."""
+    """Manages application configuration loading with edge case handling."""
 
-    def __init__(self, config_file: Optional[str] = None) -> None:
-        """Initialize the configuration manager with an optional JSON file path."""
-        self._settings: Dict[str, Any] = {}
-        if config_file and os.path.exists(config_file):
-            self.load_from_json(config_file)
+    def __init__(self, default_config: Optional[Dict[str, Any]] = None):
+        self._config: Dict[str, Any] = default_config.copy() if default_config else {}
 
-    def load_from_json(self, file_path: str) -> None:
-        """Load configuration key-value pairs from a JSON file."""
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if isinstance(data, dict):
-                self._settings.update(data)
+    def load_from_json(self, file_path: str) -> bool:
+        """Loads configuration settings from a JSON file safely."""
+        if not isinstance(file_path, (str, bytes, os.PathLike)):
+            raise ConfigError(f"Invalid file path type: {type(file_path).__name__}")
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieve a configuration value by key, checking environment first."""
-        env_val = os.getenv(key.upper())
-        if env_val is not None:
-            return env_val
-        return self._settings.get(key, default)
+        if not os.path.exists(file_path):
+            logger.warning(f"Configuration file not found: {file_path}")
+            return False
 
-    def set(self, key: str, value: Any) -> None:
-        """Set a local configuration key-value pair."""
-        self._settings[key] = value
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if not content:
+                    logger.warning(f"Configuration file is empty: {file_path}")
+                    return False
+                data = json.loads(content)
+                if not isinstance(data, dict):
+                    raise ConfigError(f"Root element in {file_path} must be a JSON object")
+                self._config.update(data)
+                return True
+        except (OSError, PermissionError) as e:
+            raise ConfigError(f"Unable to read file {file_path}: {e}") from e
+        except json.JSONDecodeError as e:
+            raise ConfigError(f"Invalid JSON syntax in {file_path}: {e}") from e
 
-    def get_bool(self, key: str, default: bool = False) -> bool:
-        """Retrieve a configuration value cast to a boolean."""
-        val = self.get(key, default)
-        if isinstance(val, bool):
-            return val
-        if isinstance(val, str):
-            return val.lower() in ("true", "1", "yes", "on")
-        return bool(val)
+    def get(self, key: str, default: Any = None, cast_type: Optional[type] = None) -> Any:
+        """Retrieves a configuration value with optional type casting and fallback."""
+        value = self._config.get(key, default)
+        if value is None or cast_type is None:
+            return value
 
-
-def load_app_config(env_prefix: str = "APP_") -> Dict[str, str]:
-    """Extract all environment variables starting with a given prefix."""
-    result: Dict[str, str] = {}
-    for key, value in os.environ.items():
-        if key.startswith(env_prefix):
-            clean_key = key[len(env_prefix):].lower()
-            result[clean_key] = value
-    return result
+        try:
+            return cast_type(value)
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                f"Failed to cast key '{key}' value '{value}' to {cast_type.__name__}: {e}"
+            )
+            return default
