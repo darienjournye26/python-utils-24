@@ -1,57 +1,56 @@
-import os
 import json
-import logging
-from typing import Any, Dict, Optional
-
-logger = logging.getLogger(__name__)
-
-
-class ConfigError(Exception):
-    """Custom exception raised for configuration errors."""
-    pass
+import os
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
 
 
-class ConfigManager:
-    """Manages application configuration loading with edge case handling."""
+class ConfigLoader:
+    """Manages application configuration with default fallbacks and environment overrides."""
 
-    def __init__(self, default_config: Optional[Dict[str, Any]] = None):
-        self._config: Dict[str, Any] = default_config.copy() if default_config else {}
+    def __init__(self, defaults: Optional[Dict[str, Any]] = None) -> None:
+        self._config: Dict[str, Any] = defaults.copy() if defaults else {}
 
-    def load_from_json(self, file_path: str) -> bool:
-        """Loads configuration settings from a JSON file safely."""
-        if not isinstance(file_path, (str, bytes, os.PathLike)):
-            raise ConfigError(f"Invalid file path type: {type(file_path).__name__}")
+    def load_from_file(self, filepath: Union[str, Path]) -> None:
+        """Load JSON configuration file and merge with current settings."""
+        path = Path(filepath)
+        if not path.exists():
+            raise FileNotFoundError(f"Configuration file not found: {filepath}")
 
-        if not os.path.exists(file_path):
-            logger.warning(f"Configuration file not found: {file_path}")
+        with path.open("r", encoding="utf-8") as file:
+            user_config = json.load(file)
+            self._merge_dicts(self._config, user_config)
+
+    def load_from_env(self, prefix: str = "APP_") -> None:
+        """Override configuration values using environment variables."""
+        for key, value in os.environ.items():
+            if key.startswith(prefix):
+                config_key = key[len(prefix):].lower()
+                self._config[config_key] = self._parse_env_value(value)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieve a configuration option by key with fallback default."""
+        return self._config.get(key, default)
+
+    def _merge_dicts(self, target: Dict[str, Any], source: Dict[str, Any]) -> None:
+        """Recursively merge dictionary source into target."""
+        for key, value in source.items():
+            if isinstance(value, dict) and key in target and isinstance(target[key], dict):
+                self._merge_dicts(target[key], value)
+            else:
+                target[key] = value
+
+    @staticmethod
+    def _parse_env_value(value: str) -> Union[int, float, bool, str]:
+        """Convert string environment variables to appropriate primitive types."""
+        lowered = value.lower()
+        if lowered in ("true", "yes", "1"):
+            return True
+        if lowered in ("false", "no", "0"):
             return False
-
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-                if not content:
-                    logger.warning(f"Configuration file is empty: {file_path}")
-                    return False
-                data = json.loads(content)
-                if not isinstance(data, dict):
-                    raise ConfigError(f"Root element in {file_path} must be a JSON object")
-                self._config.update(data)
-                return True
-        except (OSError, PermissionError) as e:
-            raise ConfigError(f"Unable to read file {file_path}: {e}") from e
-        except json.JSONDecodeError as e:
-            raise ConfigError(f"Invalid JSON syntax in {file_path}: {e}") from e
-
-    def get(self, key: str, default: Any = None, cast_type: Optional[type] = None) -> Any:
-        """Retrieves a configuration value with optional type casting and fallback."""
-        value = self._config.get(key, default)
-        if value is None or cast_type is None:
-            return value
-
-        try:
-            return cast_type(value)
-        except (ValueError, TypeError) as e:
-            logger.warning(
-                f"Failed to cast key '{key}' value '{value}' to {cast_type.__name__}: {e}"
-            )
-            return default
+            return int(value)
+        except ValueError:
+            try:
+                return float(value)
+            except ValueError:
+                return value
