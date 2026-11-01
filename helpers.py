@@ -1,39 +1,40 @@
-import os
-import shutil
-from typing import List, Optional
+import time
+import functools
+import logging
+from typing import Callable, Any, Type
 
-def cleanup_temp_files(directory: str, extensions: Optional[List[str]] = None) -> int:
-    """Remove temporary files from specified directory with optional extension filtering."""
-    count = 0
-    if not os.path.exists(directory):
-        return count
+logger = logging.getLogger(__name__)
 
-    target_exts = extensions or ['.tmp', '.log', '.bak']
+def retry_on_failure(exceptions: tuple[Type[Exception], ...], max_retries: int = 3, delay: float = 1.0):
+    """Decorator for retrying network operations on specific exceptions."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            last_exception = None
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    if attempt < max_retries:
+                        sleep_time = delay * (2 ** attempt)
+                        logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {sleep_time}s...")
+                        time.sleep(sleep_time)
+            logger.error(f"Operation failed after {max_retries} retries: {last_exception}")
+            raise last_exception
+        return wrapper
+    return decorator
 
-    for entry in os.listdir(directory):
-        path = os.path.join(directory, entry)
-        if os.path.isfile(path):
-            if any(path.endswith(ext) for ext in target_exts):
-                os.remove(path)
-                count += 1
-    return count
-
-def clear_directory_contents(directory: str) -> None:
-    """Recursively remove all contents within a directory without deleting the root."""
-    if not os.path.exists(directory):
-        return
-
-    for item in os.listdir(directory):
-        path = os.path.join(directory, item)
+def execute_with_retry(func: Callable, *args, **kwargs) -> Any:
+    """Functional wrapper for network call retries."""
+    retries = kwargs.pop('_max_retries', 3)
+    delay = kwargs.pop('_delay', 1.0)
+    
+    for attempt in range(retries + 1):
         try:
-            if os.path.isfile(path) or os.path.islink(path):
-                os.unlink(path)
-            elif os.path.isdir(path):
-                shutil.rmtree(path)
-        except OSError as e:
-            print(f"Failed to delete {path}: {e}")
-
-def ensure_clean_workspace(path: str) -> None:
-    """Reset workspace by removing existing temp files and clearing content."""
-    cleanup_temp_files(path)
-    clear_directory_contents(path)
+            return func(*args, **kwargs)
+        except Exception as e:
+            if attempt == retries:
+                raise e
+            time.sleep(delay)
+    return None
