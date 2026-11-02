@@ -1,48 +1,28 @@
 import logging
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
-from typing import Union, Optional
+import sys
+from typing import Optional
 
-
-def setup_logger(
-    name: str = "app",
-    log_file: Optional[Union[str, Path]] = "app.log",
-    level: int = logging.INFO,
-    max_bytes: int = 5 * 1024 * 1024,
-    backup_count: int = 5,
-    log_to_console: bool = True
-) -> logging.Logger:
-    """Configure and return a logger instance with optional file rotation."""
+def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    """Configures and returns a standard formatted logger."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Prevent adding duplicate handlers if logger is already configured
-    if logger.handlers:
-        return logger
-
-    formatter = logging.Formatter(
-        fmt="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-
-    if log_file:
-        file_path = Path(log_file)
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        file_handler = RotatingFileHandler(
-            filename=str(file_path),
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding="utf-8"
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
-        file_handler.setFormatter(formatter)
-        file_handler.setLevel(level)
-        logger.addHandler(file_handler)
-
-    if log_to_console:
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        console_handler.setLevel(level)
-        logger.addHandler(console_handler)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     return logger
+
+def log_execution_time(logger: logging.Logger, func_name: str, duration: float) -> None:
+    """Utility for logging function performance metrics."""
+    logger.info(f"Execution of {func_name} took {duration:.4f} seconds")
+
+def setup_debug_mode(logger: logging.Logger) -> None:
+    """Forces logger to debug level for diagnostics."""
+    logger.setLevel(logging.DEBUG)
+    for handler in logger.handlers:
+        handler.setLevel(logging.DEBUG)
