@@ -1,26 +1,52 @@
-"""Centralized constants for python-utils-24 library."""
+"""General utility constants and typed constant registry."""
 
-from typing import Final
+from enum import Enum
+from typing import Any, Dict, Final, Optional
 
-# Date & Time formats
-DEFAULT_DATETIME_FORMAT: Final[str] = "%Y-%m-%d %H:%M:%S"
-ISO_DATETIME_FORMAT: Final[str] = "%Y-%m-%dT%H:%M:%S.%fZ"
-DEFAULT_DATE_FORMAT: Final[str] = "%Y-%m-%d"
 
-# Network & I/O Defaults
-DEFAULT_TIMEOUT: Final[float] = 30.0  # seconds
-DEFAULT_BUFFER_SIZE: Final[int] = 8192  # bytes
-MAX_RETRIES: Final[int] = 3
-RETRY_BACKOFF_FACTOR: Final[float] = 1.5
+class Environment(str, Enum):
+    """Supported runtime environment identifiers."""
 
-# Common Regular Expressions
-EMAIL_REGEX: Final[str] = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
-SLUG_REGEX: Final[str] = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    DEVELOPMENT = "development"
+    STAGING = "staging"
+    PRODUCTION = "production"
+    TESTING = "testing"
 
-# Data processing limits and encoding
-MAX_BATCH_SIZE: Final[int] = 1000
-DEFAULT_ENCODING: Final[str] = "utf-8"
 
-# Environment variable keys
-ENV_DEBUG_KEY: Final[str] = "UTILS_DEBUG"
-ENV_CONFIG_PATH_KEY: Final[str] = "UTILS_CONFIG_PATH"
+# Default application timeout in seconds
+DEFAULT_TIMEOUT: Final[int] = 30
+
+# Default max retry attempts for network operations
+DEFAULT_MAX_RETRIES: Final[int] = 3
+
+# Common HTTP status codes for convenient reference
+HTTP_STATUS_OK: Final[int] = 200
+HTTP_STATUS_BAD_REQUEST: Final[int] = 400
+HTTP_STATUS_UNAUTHORIZED: Final[int] = 401
+HTTP_STATUS_NOT_FOUND: Final[int] = 404
+HTTP_STATUS_SERVER_ERROR: Final[int] = 500
+
+
+class ConstantRegistry:
+    """Type-safe dynamic registry for storing and retrieving runtime constants."""
+
+    def __init__(self, initial_data: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize registry with optional dictionary of constant key-value pairs."""
+        self._registry: Dict[str, Any] = {}
+        if initial_data:
+            for key, value in initial_data.items():
+                self.register(key, value)
+
+    def register(self, key: str, value: Any) -> None:
+        """Register a new constant key-value pair. Prevents overwriting existing keys."""
+        if key in self._registry:
+            raise KeyError(f"Constant '{key}' is already defined and immutable.")
+        self._registry[key] = value
+
+    def get(self, key: str, default: Optional[Any] = None) -> Any:
+        """Retrieve constant value by key with optional default fallback."""
+        return self._registry.get(key, default)
+
+    def as_dict(self) -> Dict[str, Any]:
+        """Return a shallow copy of registered constants."""
+        return self._registry.copy()
