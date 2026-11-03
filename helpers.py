@@ -1,32 +1,39 @@
-from typing import Any, Iterable, Optional
+import logging
+from typing import Any, Callable, Optional, TypeVar, T
 
-def flatten_list(nested_list: Iterable[Any]) -> list[Any]:
-    """Recursively flatten a nested list structure into a single list."""
-    flat: list[Any] = []
-    for item in nested_list:
-        if isinstance(item, list):
-            flat.extend(flatten_list(item))
-        else:
-            flat.append(item)
-    return flat
+logger = logging.getLogger(__name__)
 
-def chunk_iterable(data: Iterable[Any], size: int) -> Iterable[list[Any]]:
-    """Split an iterable into smaller chunks of a specified size."""
-    chunk: list[Any] = []
-    for item in data:
-        chunk.append(item)
-        if len(chunk) == size:
-            yield chunk
-            chunk = []
-    if chunk:
-        yield chunk
-
-def get_nested_key(data: dict[str, Any], keys: list[str], default: Any = None) -> Any:
-    """Retrieve a value from a nested dictionary using a list of keys."""
-    current = data
+def safe_execute(func: Callable[..., T], *args: Any, default: Optional[T] = None, **kwargs: Any) -> Optional[T]:
+    """
+    Executes a callable with error catching for edge cases.
+    Logs errors and returns a default value on failure.
+    """
     try:
-        for key in keys:
-            current = current[key]
-        return current
-    except (KeyError, TypeError):
+        return func(*args, **kwargs)
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
+        logger.error(f"Execution error in {func.__name__}: {e}")
         return default
+    except Exception as e:
+        logger.critical(f"Unexpected runtime error: {e}")
+        raise
+
+def validate_input(value: Any, expected_type: type) -> bool:
+    """
+    Checks if input matches expected type and is not None.
+    Returns false for malformed edge cases.
+    """
+    if value is None:
+        return False
+    if not isinstance(value, expected_type):
+        return False
+    return True
+
+def normalize_data(data: Any) -> Any:
+    """
+    Sanitizes inputs to prevent type errors in pipelines.
+    """
+    if isinstance(data, str):
+        return data.strip()
+    if isinstance(data, (int, float)):
+        return data
+    return None
