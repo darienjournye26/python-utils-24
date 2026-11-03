@@ -1,30 +1,42 @@
 import os
-from typing import Dict, Any, Optional
+import json
+from typing import Any, Dict
 
-class ConfigLoader:
-    """Handles loading and retrieval of application configuration settings."""
+DEFAULT_CONFIG = {
+    "host": "localhost",
+    "port": 8080,
+    "debug": False
+}
 
-    def __init__(self, env_prefix: str = "APP_") -> None:
-        self.env_prefix: str = env_prefix
-        self._settings: Dict[str, Any] = {}
+def load_config(path: str) -> Dict[str, Any]:
+    """
+    Loads JSON configuration from file, merging with defaults.
+    """
+    config = DEFAULT_CONFIG.copy()
+    
+    if not os.path.exists(path):
+        return config
 
-    def load_from_env(self) -> None:
-        """Loads environment variables into the settings dictionary."""
-        for key, value in os.environ.items():
-            if key.startswith(self.env_prefix):
-                clean_key: str = key[len(self.env_prefix):].lower()
-                self._settings[clean_key] = value
+    try:
+        with open(path, "r") as f:
+            user_config = json.load(f)
+            config.update(user_config)
+    except (json.JSONDecodeError, IOError):
+        pass
+        
+    return config
 
-    def get(self, key: str, default: Optional[Any] = None) -> Any:
-        """Retrieves a setting by key with an optional default value."""
-        return self._settings.get(key, default)
+class ConfigManager:
+    """
+    Configuration manager with persistence support.
+    """
+    def __init__(self, config_path: str = "config.json"):
+        self.path = config_path
+        self.settings = load_config(config_path)
 
-    def set(self, key: str, value: Any) -> None:
-        """Manually updates a setting value in the configuration."""
-        self._settings[key] = value
+    def get(self, key: str, default: Any = None) -> Any:
+        return self.settings.get(key, default)
 
-def get_default_config() -> ConfigLoader:
-    """Factory function to return a pre-configured loader instance."""
-    loader = ConfigLoader()
-    loader.load_from_env()
-    return loader
+    def save(self) -> None:
+        with open(self.path, "w") as f:
+            json.dump(self.settings, f, indent=4)
