@@ -1,31 +1,26 @@
-from typing import Final, Dict, Any
+"""Centralized constants for python-utils-24 library."""
 
-# Standardized status codes for application data flows
-STATUS_SUCCESS: Final[str] = 'success'
-STATUS_FAILURE: Final[str] = 'failure'
-STATUS_PENDING: Final[str] = 'pending'
+from typing import Final
 
-# Default timeout values for network and I/O ops
-DEFAULT_TIMEOUT: Final[int] = 30
+# Date & Time formats
+DEFAULT_DATETIME_FORMAT: Final[str] = "%Y-%m-%d %H:%M:%S"
+ISO_DATETIME_FORMAT: Final[str] = "%Y-%m-%dT%H:%M:%S.%fZ"
+DEFAULT_DATE_FORMAT: Final[str] = "%Y-%m-%d"
+
+# Network & I/O Defaults
+DEFAULT_TIMEOUT: Final[float] = 30.0  # seconds
+DEFAULT_BUFFER_SIZE: Final[int] = 8192  # bytes
 MAX_RETRIES: Final[int] = 3
+RETRY_BACKOFF_FACTOR: Final[float] = 1.5
 
-# Common data type categories for field validation
-TYPE_INTEGER: Final[str] = 'int'
-TYPE_STRING: Final[str] = 'str'
-TYPE_BOOLEAN: Final[str] = 'bool'
-TYPE_LIST: Final[str] = 'list'
+# Common Regular Expressions
+EMAIL_REGEX: Final[str] = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+SLUG_REGEX: Final[str] = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 
-# Mapping for environment-specific path placeholders
-PATH_MAPPINGS: Final[Dict[str, str]] = {
-    'local': './data/local',
-    'staging': '/opt/data/staging',
-    'production': '/var/lib/data/prod'
-}
+# Data processing limits and encoding
+MAX_BATCH_SIZE: Final[int] = 1000
+DEFAULT_ENCODING: Final[str] = "utf-8"
 
-def get_constant_by_name(name: str, default: Any = None) -> Any:
-    """Retrieve constant value from this module by string name."""
-    return globals().get(name, default)
-
-# Configuration patterns for service validation
-REQUIRED_FIELDS: Final[tuple] = ('id', 'timestamp', 'payload')
-SUPPORTED_ENCODINGS: Final[tuple] = ('utf-8', 'ascii', 'latin-1')
+# Environment variable keys
+ENV_DEBUG_KEY: Final[str] = "UTILS_DEBUG"
+ENV_CONFIG_PATH_KEY: Final[str] = "UTILS_CONFIG_PATH"
