@@ -1,38 +1,44 @@
 import functools
-import time
-from typing import Callable, Any, Dict
+import itertools
+from typing import Any, Callable, Iterable, List, TypeVar
 
-# Cache for compute-heavy operations to reduce redundant processing
-_LRU_CACHE_SIZE = 128
-_RESULT_CACHE: Dict[tuple, Any] = {}
+T = TypeVar("T")
+R = TypeVar("R")
 
-def memoize(func: Callable) -> Callable:
-    """Decorator to cache function results based on arguments."""
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in _RESULT_CACHE:
-            if len(_RESULT_CACHE) >= _LRU_CACHE_SIZE:
-                _RESULT_CACHE.pop(next(iter(_RESULT_CACHE)))
-            _RESULT_CACHE[key] = func(*args, **kwargs)
-        return _RESULT_CACHE[key]
-    return wrapper
 
-def batch_process(items: list, chunk_size: int = 100):
-    """Generator for memory-efficient chunked list processing."""
-    for i in range(0, len(items), chunk_size):
-        yield items[i:i + chunk_size]
+class CoreBatchProcessor:
+    """High-performance batch processing utility with memory-conscious iteration."""
 
-class PerformanceTracker:
-    """Utility for measuring execution time of critical paths."""
-    def __init__(self, label: str):
-        self.label = label
-        self.start = 0.0
+    def __init__(self, batch_size: int = 1000):
+        if batch_size <= 0:
+            raise ValueError("Batch size must be a positive integer.")
+        self.batch_size = batch_size
 
-    def __enter__(self):
-        self.start = time.perf_counter()
-        return self
+    def chunk_iterable(self, iterable: Iterable[T]) -> Iterable[List[T]]:
+        """Efficiently split an iterable into chunks using itertools islice."""
+        iterator = iter(iterable)
+        while chunk := list(itertools.islice(iterator, self.batch_size)):
+            yield chunk
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        elapsed = time.perf_counter() - self.start
-        print(f"[PERF] {self.label}: {elapsed:.6f}s")
+    @staticmethod
+    @functools.lru_cache(maxsize=1024)
+    def cached_transform(transform_func: Callable[[Any], Any], value: Any) -> Any:
+        """Apply pure transformation with LRU cache to eliminate duplicate work."""
+        return transform_func(value)
+
+    def process_fast(self, items: List[T], transform: Callable[[T], R]) -> List[R]:
+        """Process items with local method reference binding for optimized loop speed."""
+        results: List[R] = []
+        append = results.append
+        for item in items:
+            append(transform(item))
+        return results
+
+    def map_in_chunks(self, items: Iterable[T], transform: Callable[[T], R]) -> List[R]:
+        """Process large iterables in chunks to maintain low memory overhead."""
+        output: List[R] = []
+        extend = output.extend
+        for chunk in self.chunk_iterable(items):
+            processed = self.process_fast(chunk, transform)
+            extend(processed)
+        return output
