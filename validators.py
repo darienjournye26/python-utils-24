@@ -1,35 +1,24 @@
-import logging
-from typing import Any, Dict, Optional
+from typing import Any, Union, Optional
 
-logger = logging.getLogger(__name__)
+def validate_email(email: str) -> bool:
+    """Check if string follows standard email format."""
+    if not isinstance(email, str) or "@" not in email:
+        return False
+    parts = email.split("@")
+    return len(parts) == 2 and all(parts)
 
-class ValidationError(Exception):
-    """Custom exception for input validation failures."""
-    pass
+def validate_range(value: Union[int, float], min_val: float, max_val: float) -> bool:
+    """Verify number is within inclusive bounds."""
+    return min_val <= value <= max_val
 
-def validate_payload(data: Any, required_keys: list) -> bool:
-    """Validates dictionary structure and presence of required fields."""
-    if not isinstance(data, dict):
-        raise ValidationError(f"Expected dict, got {type(data).__name__}")
+def validate_non_empty(value: Optional[str]) -> bool:
+    """Ensure string is provided and not whitespace only."""
+    if value is None:
+        return False
+    return bool(value.strip())
 
-    for key in required_keys:
-        if key not in data:
-            raise ValidationError(f"Missing required field: {key}")
-        if data[key] is None:
-            raise ValidationError(f"Field cannot be null: {key}")
-            
-    return True
-
-def process_main_loop(items: list, schema: list):
-    """Main processing loop with integrated input validation."""
-    for index, item in enumerate(items):
-        try:
-            if validate_payload(item, schema):
-                logger.info(f"Processing item {index}")
-                # Execute core business logic here
-        except ValidationError as e:
-            logger.error(f"Skipping item {index}: {e}")
-            continue
-        except Exception as e:
-            logger.critical(f"Unexpected error at {index}: {e}")
-            raise
+def sanitize_input(value: Any) -> str:
+    """Convert any input to stripped string."""
+    if value is None:
+        return ""
+    return str(value).strip()
