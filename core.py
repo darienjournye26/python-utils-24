@@ -1,44 +1,37 @@
 import functools
-import itertools
-from typing import Any, Callable, Iterable, List, TypeVar
+import time
+from typing import Callable, Any, Dict
 
-T = TypeVar("T")
-R = TypeVar("R")
+# Cache for storing expensive function results to optimize performance
+_CACHE: Dict[tuple, Any] = {}
 
+def memoize(func: Callable) -> Callable:
+    """Decorator for caching function return values."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _CACHE:
+            _CACHE[key] = func(*args, **kwargs)
+        return _CACHE[key]
+    return wrapper
 
-class CoreBatchProcessor:
-    """High-performance batch processing utility with memory-conscious iteration."""
+@memoize
+def compute_intensive_data(n: int) -> int:
+    """Simulates a resource-heavy calculation with memoization."""
+    time.sleep(1)
+    return sum(i * i for i in range(n))
 
-    def __init__(self, batch_size: int = 1000):
-        if batch_size <= 0:
-            raise ValueError("Batch size must be a positive integer.")
-        self.batch_size = batch_size
+def clear_cache() -> None:
+    """Manual memory management for the cache."""
+    _CACHE.clear()
 
-    def chunk_iterable(self, iterable: Iterable[T]) -> Iterable[List[T]]:
-        """Efficiently split an iterable into chunks using itertools islice."""
-        iterator = iter(iterable)
-        while chunk := list(itertools.islice(iterator, self.batch_size)):
-            yield chunk
-
-    @staticmethod
-    @functools.lru_cache(maxsize=1024)
-    def cached_transform(transform_func: Callable[[Any], Any], value: Any) -> Any:
-        """Apply pure transformation with LRU cache to eliminate duplicate work."""
-        return transform_func(value)
-
-    def process_fast(self, items: List[T], transform: Callable[[T], R]) -> List[R]:
-        """Process items with local method reference binding for optimized loop speed."""
-        results: List[R] = []
-        append = results.append
-        for item in items:
-            append(transform(item))
-        return results
-
-    def map_in_chunks(self, items: Iterable[T], transform: Callable[[T], R]) -> List[R]:
-        """Process large iterables in chunks to maintain low memory overhead."""
-        output: List[R] = []
-        extend = output.extend
-        for chunk in self.chunk_iterable(items):
-            processed = self.process_fast(chunk, transform)
-            extend(processed)
-        return output
+if __name__ == '__main__':
+    start = time.perf_counter()
+    compute_intensive_data(1000)
+    first_run = time.perf_counter() - start
+    
+    start = time.perf_counter()
+    compute_intensive_data(1000)
+    second_run = time.perf_counter() - start
+    
+    print(f'First run: {first_run:.4f}s, Cached run: {second_run:.4f}s')
