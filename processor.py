@@ -1,33 +1,33 @@
-import collections.abc
-from typing import Any, Dict, List, Optional
+import logging
 
-def flatten_dict(data: Dict[str, Any], sep: str = '_') -> Dict[str, Any]:
-    """Flattens nested dictionaries into a single-level dictionary."""
-    items = {}
-    for key, value in data.items():
-        if isinstance(value, dict):
-            new_items = flatten_dict(value, sep=sep)
-            for n_key, n_value in new_items.items():
-                items[f"{key}{sep}{n_key}"] = n_value
-        else:
-            items[key] = value
-    return items
+# Configure logger for module tracking
+logger = logging.getLogger(__name__)
 
-def clean_data(data: Any, allowed_types: Optional[tuple] = None) -> Any:
-    """Recursively removes None values from nested structures."""
-    if isinstance(data, dict):
-        return {k: clean_data(v, allowed_types) for k, v in data.items() if v is not None}
-    if isinstance(data, list):
-        return [clean_data(i, allowed_types) for i in data if i is not None]
-    return data
+def validate_input(data):
+    """Ensures input is a non-empty dictionary."""
+    if not isinstance(data, dict):
+        return False
+    if not data:
+        return False
+    return True
 
-def get_nested(data: Dict[str, Any], path: str, sep: str = '.') -> Any:
-    """Retrieves value from nested dictionary using dot notation."""
-    keys = path.split(sep)
-    val = data
-    try:
-        for key in keys:
-            val = val[key]
-        return val
-    except (KeyError, TypeError):
-        return None
+def process_main_loop(items):
+    """Main processing loop with data validation."""
+    for index, item in enumerate(items):
+        try:
+            # Validate current iteration input
+            if not validate_input(item):
+                logger.warning(f"Skipping invalid input at index {index}")
+                continue
+            
+            # Execute primary business logic
+            result = item.get("value", 0) * 2
+            logger.info(f"Processed item {index}: result {result}")
+            
+        except Exception as e:
+            logger.error(f"Unexpected error processing item {index}: {e}")
+
+if __name__ == '__main__':
+    # Example payload execution
+    sample_data = [{"value": 10}, {}, "invalid_type", {"value": 20}]
+    process_main_loop(sample_data)
