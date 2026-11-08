@@ -1,37 +1,43 @@
 import functools
-import time
-from typing import Callable, Any, Dict
+import itertools
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Callable, Iterable, List, Sequence, TypeVar
 
-# Cache for storing expensive function results to optimize performance
-_CACHE: Dict[tuple, Any] = {}
+T = TypeVar("T")
+R = TypeVar("R")
 
-def memoize(func: Callable) -> Callable:
-    """Decorator for caching function return values."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in _CACHE:
-            _CACHE[key] = func(*args, **kwargs)
-        return _CACHE[key]
-    return wrapper
 
-@memoize
-def compute_intensive_data(n: int) -> int:
-    """Simulates a resource-heavy calculation with memoization."""
-    time.sleep(1)
-    return sum(i * i for i in range(n))
+class FastPipeline:
+    """High-performance batch execution and memoized pipeline helper."""
 
-def clear_cache() -> None:
-    """Manual memory management for the cache."""
-    _CACHE.clear()
+    def __init__(self, max_workers: int = 4, cache_size: int = 128) -> None:
+        self.max_workers = max_workers
+        self.cache_size = cache_size
 
-if __name__ == '__main__':
-    start = time.perf_counter()
-    compute_intensive_data(1000)
-    first_run = time.perf_counter() - start
-    
-    start = time.perf_counter()
-    compute_intensive_data(1000)
-    second_run = time.perf_counter() - start
-    
-    print(f'First run: {first_run:.4f}s, Cached run: {second_run:.4f}s')
+    def chunk_iterable(self, iterable: Iterable[T], chunk_size: int) -> Iterable[List[T]]:
+        """Split an iterable into chunks of fixed size without excess memory usage."""
+        iterator = iter(iterable)
+        while chunk := list(itertools.islice(iterator, chunk_size)):
+            yield chunk
+
+    def memoize(self, func: Callable[..., R]) -> Callable[..., R]:
+        """Wrap a callable with an LRU cache for result reuse."""
+        return functools.lru_cache(maxsize=self.cache_size)(func)
+
+    def map_parallel(self, func: Callable[[T], R], items: Sequence[T], chunk_size: int = 100) -> List[R]:
+        """Execute mapping in parallel over items using worker pool and chunking."""
+        if not items:
+            return []
+
+        results: List[R] = []
+        chunks = list(self.chunk_iterable(items, chunk_size))
+
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = [
+                executor.submit(lambda c: [func(item) for item in c], chunk)
+                for chunk in chunks
+            ]
+            for future in futures:
+                results.extend(future.result())
+
+        return results
