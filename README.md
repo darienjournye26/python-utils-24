@@ -1,48 +1,49 @@
 # python-utils-24
 
-`python-utils-24` is a collection of high-performance utility functions designed to streamline routine Python development tasks. It focuses on reducing boilerplate code for data manipulation, file system operations, and environment management.
+A curated collection of production-ready Python utility functions designed to streamline daily development tasks. This library focuses on performance, readability, and minimizing boilerplate code for common data manipulation and system operations.
 
 ## Features
 
-*   **Robust File Operations:** Enhanced wrappers for recursive directory traversal and intelligent file searching with pattern matching.
-*   **Performance Profiling:** Lightweight decorators for tracking function execution time and memory usage with minimal overhead.
-*   **Data Validation:** A suite of type-safe helpers for parsing complex nested dictionaries and enforcing strict JSON schema integrity.
-*   **System Helpers:** Cross-platform utilities to retrieve system hardware specs and manage persistent environment configurations.
+*   **Robust File Operations:** Simplified wrappers for recursive directory traversal and atomic file writing with automated backups.
+*   **Performance Decorators:** Lightweight decorators for function execution timing and memory-efficient caching strategies.
+*   **Data Validation:** A flexible set of schema-less validation helpers for nested JSON structures and environment variables.
+*   **String Sanitization:** Optimized text cleaning utilities for handling irregular whitespace, Unicode normalization, and pattern-based redaction.
 
 ## Installation
 
-Install the package via `pip`:
+Install the package via pip:
 
 ```bash
 pip install python-utils-24
 ```
 
-For development mode:
+For development or local testing, clone the repository and install dependencies:
 
 ```bash
 git clone https://github.com/Developer/python-utils-24.git
 cd python-utils-24
-pip install -e .
+pip install -r requirements.txt
 ```
 
 ## Usage
 
-Import the desired module and utilize the optimized wrappers. Here is a quick example of the profiling decorator:
+Easily integrate core utilities into your scripts to reduce repetitive code:
 
 ```python
-from pyutils24.decorators import profile_time
+from pyutils24.file_ops import atomic_write
+from pyutils24.decorators import time_execution
 
-@profile_time
+@time_execution
 def process_data(data):
-    # Simulate heavy workload
-    return [i**2 for i in data]
+    # Process your data efficiently
+    return [d.strip().lower() for d in data]
 
-result = process_data(range(1000000))
-# Output: Function 'process_data' executed in 0.084 seconds.
+# Write to file safely
+atomic_write("output.txt", "Task completed successfully.")
 ```
 
 ## License
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Distributed under the MIT License. See `LICENSE` for more information.
