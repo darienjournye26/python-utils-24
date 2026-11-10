@@ -1,64 +1,39 @@
-from typing import Any, Dict, List, Optional
+import functools
+import itertools
+from typing import Any, Callable, Iterable, List, Optional
 
 
-class ValidationError(Exception):
-    """Custom exception raised when input record validation fails."""
-    pass
+class FastBatchProcessor:
+    """Optimized batch processor utilizing slots and iterator slice evaluation."""
+
+    __slots__ = ("batch_size", "_transform")
+
+    def __init__(
+        self, batch_size: int = 1000, transform: Optional[Callable[[Any], Any]] = None
+    ) -> None:
+        if batch_size <= 0:
+            raise ValueError("batch_size must be a positive integer")
+        self.batch_size = batch_size
+        self._transform = transform
+
+    def process_stream(self, iterable: Iterable[Any]) -> Iterable[List[Any]]:
+        """Yield batches of processed items without loading full dataset into memory."""
+        iterator = iter(iterable)
+        transform_fn = self._transform
+        
+        while True:
+            batch = list(itertools.islice(iterator, self.batch_size))
+            if not batch:
+                break
+            if transform_fn is not None:
+                yield [transform_fn(item) for item in batch]
+            else:
+                yield batch
 
 
-def validate_record(record: Any) -> Dict[str, Any]:
-    """Validate raw input record structure and data types."""
-    if not isinstance(record, dict):
-        raise ValidationError(f"Expected dict record, got {type(record).__name__}")
-    
-    if "id" not in record or not isinstance(record["id"], (int, str)):
-        raise ValidationError("Missing or invalid 'id' field")
-    
-    if "value" not in record:
-        raise ValidationError("Missing required 'value' field")
-    
-    try:
-        record["value"] = float(record["value"])
-    except (ValueError, TypeError):
-        raise ValidationError(f"Invalid numeric value: {record.get('value')}")
-    
-    return record
-
-
-def process_batch(items: List[Any]) -> List[Dict[str, Any]]:
-    """Process a batch of records with input validation in the main loop."""
-    processed_results: List[Dict[str, Any]] = []
-    
-    for index, raw_item in enumerate(items):
-        try:
-            # Validate input before attempting business logic
-            valid_item = validate_record(raw_item)
-            
-            # Processing logic for valid items
-            result = {
-                "id": valid_item["id"],
-                "processed_value": round(valid_item["value"] * 1.15, 2),
-                "status": "success"
-            }
-            processed_results.append(result)
-            
-        except ValidationError as err:
-            # Record invalid input details without interrupting batch processing
-            processed_results.append({
-                "index": index,
-                "error": str(err),
-                "status": "skipped"
-            })
-            
-    return processed_results
-
-
-if __name__ == "__main__":
-    sample_data = [
-        {"id": 101, "value": "42.5"},
-        {"id": 102},  # missing value
-        "not_a_dict",  # invalid type
-        {"id": 103, "value": "invalid_num"}
-    ]
-    output = process_batch(sample_data)
-    print(f"Processed {len(output)} records.")
+@functools.lru_cache(maxsize=2048)
+def memoized_evaluation(key: str, value: Any) -> Any:
+    """Fast lookup wrapper for costly repetitive transformation tasks."""
+    if isinstance(value, (int, float)):
+        return value * 2 - (value % 3)
+    return hash((key, str(value)))
