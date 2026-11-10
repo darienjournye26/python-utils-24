@@ -1,43 +1,64 @@
-import functools
-import itertools
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Callable, Iterable, List, Sequence, TypeVar
-
-T = TypeVar("T")
-R = TypeVar("R")
+from typing import Any, Dict, List, Optional
 
 
-class FastPipeline:
-    """High-performance batch execution and memoized pipeline helper."""
+class ValidationError(Exception):
+    """Custom exception raised when input record validation fails."""
+    pass
 
-    def __init__(self, max_workers: int = 4, cache_size: int = 128) -> None:
-        self.max_workers = max_workers
-        self.cache_size = cache_size
 
-    def chunk_iterable(self, iterable: Iterable[T], chunk_size: int) -> Iterable[List[T]]:
-        """Split an iterable into chunks of fixed size without excess memory usage."""
-        iterator = iter(iterable)
-        while chunk := list(itertools.islice(iterator, chunk_size)):
-            yield chunk
+def validate_record(record: Any) -> Dict[str, Any]:
+    """Validate raw input record structure and data types."""
+    if not isinstance(record, dict):
+        raise ValidationError(f"Expected dict record, got {type(record).__name__}")
+    
+    if "id" not in record or not isinstance(record["id"], (int, str)):
+        raise ValidationError("Missing or invalid 'id' field")
+    
+    if "value" not in record:
+        raise ValidationError("Missing required 'value' field")
+    
+    try:
+        record["value"] = float(record["value"])
+    except (ValueError, TypeError):
+        raise ValidationError(f"Invalid numeric value: {record.get('value')}")
+    
+    return record
 
-    def memoize(self, func: Callable[..., R]) -> Callable[..., R]:
-        """Wrap a callable with an LRU cache for result reuse."""
-        return functools.lru_cache(maxsize=self.cache_size)(func)
 
-    def map_parallel(self, func: Callable[[T], R], items: Sequence[T], chunk_size: int = 100) -> List[R]:
-        """Execute mapping in parallel over items using worker pool and chunking."""
-        if not items:
-            return []
+def process_batch(items: List[Any]) -> List[Dict[str, Any]]:
+    """Process a batch of records with input validation in the main loop."""
+    processed_results: List[Dict[str, Any]] = []
+    
+    for index, raw_item in enumerate(items):
+        try:
+            # Validate input before attempting business logic
+            valid_item = validate_record(raw_item)
+            
+            # Processing logic for valid items
+            result = {
+                "id": valid_item["id"],
+                "processed_value": round(valid_item["value"] * 1.15, 2),
+                "status": "success"
+            }
+            processed_results.append(result)
+            
+        except ValidationError as err:
+            # Record invalid input details without interrupting batch processing
+            processed_results.append({
+                "index": index,
+                "error": str(err),
+                "status": "skipped"
+            })
+            
+    return processed_results
 
-        results: List[R] = []
-        chunks = list(self.chunk_iterable(items, chunk_size))
 
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = [
-                executor.submit(lambda c: [func(item) for item in c], chunk)
-                for chunk in chunks
-            ]
-            for future in futures:
-                results.extend(future.result())
-
-        return results
+if __name__ == "__main__":
+    sample_data = [
+        {"id": 101, "value": "42.5"},
+        {"id": 102},  # missing value
+        "not_a_dict",  # invalid type
+        {"id": 103, "value": "invalid_num"}
+    ]
+    output = process_batch(sample_data)
+    print(f"Processed {len(output)} records.")
