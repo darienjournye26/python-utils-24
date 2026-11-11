@@ -1,28 +1,26 @@
-from typing import Optional, Any
-
-class BaseUtilsError(Exception):
-    """Base exception class for python-utils-24 package."""
+class UtilsError(Exception):
+    """Base exception for python-utils-24 package."""
     pass
 
-class ConfigurationError(BaseUtilsError):
-    """Raised when a configuration value is invalid."""
-    def __init__(self, message: str, key: Optional[str] = None) -> None:
-        super().__init__(message)
-        self.key = key
+class ValidationError(UtilsError):
+    """Raised when input data fails validation requirements."""
+    pass
 
-class ProcessingError(BaseUtilsError):
-    """Raised when data processing fails unexpectedly."""
-    def __init__(self, message: str, payload: Any = None) -> None:
-        super().__init__(message)
-        self.payload = payload
+class DataProcessingError(UtilsError):
+    """Raised when data transformation logic fails."""
+    pass
 
-class ValidationError(BaseUtilsError):
-    """Raised when input validation fails."""
-    def __init__(self, message: str, constraint: str) -> None:
-        super().__init__(message)
-        self.constraint = constraint
-
-def raise_if_none(value: Any, name: str) -> None:
-    """Check if value is None and raise error if so."""
+def validate_not_none(value, name: str):
+    """Ensures value is not None, raising ValidationError otherwise."""
     if value is None:
-        raise ValidationError(f"Value '{name}' cannot be None", "non-null")
+        raise ValidationError(f"Argument '{name}' cannot be None")
+    return value
+
+def safe_process(func, data):
+    """Wraps function execution with error normalization."""
+    try:
+        return func(data)
+    except Exception as e:
+        if isinstance(e, UtilsError):
+            raise
+        raise DataProcessingError(f"Failed to process data: {e}") from e
