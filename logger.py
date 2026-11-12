@@ -1,36 +1,53 @@
+import os
 import logging
-import functools
-import time
+from logging.handlers import RotatingFileHandler
+from typing import Optional
 
-# global cache for log formatting to avoid redundant object creation
-_CACHE = {}
 
-def memoized_logger(func):
-    """performance optimization via result caching and lazy instantiation"""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        key = (func.__name__, args, tuple(sorted(kwargs.items())))
-        if key not in _CACHE:
-            _CACHE[key] = func(*args, **kwargs)
-        return _CACHE[key]
-    return wrapper
+def setup_logger(
+    name: str = "app",
+    log_file: Optional[str] = "app.log",
+    level: int = logging.INFO,
+    max_bytes: int = 5 * 1024 * 1024,  # 5 MB
+    backup_count: int = 5,
+    fmt: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+) -> logging.Logger:
+    """Configures and returns a logger instance with optional rotating file output."""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-class CoreLogger:
-    def __init__(self, name: str):
-        self.logger = logging.getLogger(name)
-        self._level = self.logger.level
+    # Prevent duplicate handlers if re-initialized
+    if logger.handlers:
+        return logger
 
-    def log_performance(self, message: str, start_time: float):
-        """calculate duration only when logging is enabled to save cycles"""
-        if self.logger.isEnabledFor(logging.INFO):
-            duration = time.perf_counter() - start_time
-            self.logger.info(f"{message} completed in {duration:.4f}s")
+    formatter = logging.Formatter(fmt)
 
-    @memoized_logger
-    def get_structured_formatter(self, format_str: str):
-        """reuse formatters across multiple logger instances"""
-        return logging.Formatter(format_str)
+    # Console handler output
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
-# module level instance for performance
-def get_logger(name: str):
-    return CoreLogger(name)
+    # Rotating file handler configuration
+    if log_file:
+        log_dir = os.path.dirname(log_file)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+
+        file_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+            encoding="utf-8",
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    return logger
+
+
+def get_logger(name: str = "app") -> logging.Logger:
+    """Retrieve an existing logger or initialize a default setup."""
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        return setup_logger(name)
+    return logger
