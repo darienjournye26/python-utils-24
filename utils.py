@@ -1,32 +1,34 @@
+import time
+import functools
 import logging
 
-# Configure basic logging for the utility module
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def validate_input(data):
-    """Ensures input is a non-empty dictionary."""
-    if not isinstance(data, dict):
-        raise ValueError(f"Expected dict, got {type(data).__name__}")
-    if not data:
-        raise ValueError("Input dictionary cannot be empty")
+def retry_network_operation(max_attempts=3, backoff=2.0):
+    """Decorator to retry network operations with exponential backoff."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            delay = 1.0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts == max_attempts:
+                        logger.error(f"Failed after {max_attempts} attempts: {e}")
+                        raise
+                    
+                    logger.warning(f"Attempt {attempts} failed, retrying in {delay}s...")
+                    time.sleep(delay)
+                    delay *= backoff
+        return wrapper
+    return decorator
+
+@retry_network_operation(max_attempts=3, backoff=2.0)
+def fetch_data(url):
+    """Example network call wrapper."""
+    # Placeholder for actual socket or requests logic
+    logger.info(f"Fetching from {url}")
     return True
-
-def process_data(data_stream):
-    """Main processing loop with integrated input validation."""
-    for item in data_stream:
-        try:
-            validate_input(item)
-            
-            # Simulate core processing logic
-            result = item.get("value", 0) * 2
-            logger.info(f"Processed item: {result}")
-            
-        except (ValueError, TypeError) as e:
-            logger.error(f"Validation failed for input {item}: {e}")
-            continue
-
-if __name__ == "__main__":
-    # Example usage for the utility loop
-    sample_stream = [{"value": 10}, {}, "invalid_input", {"value": 5}]
-    process_data(sample_stream)
