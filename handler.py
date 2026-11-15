@@ -1,39 +1,33 @@
-from typing import Any, Dict, Optional, Callable
+import logging
+from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 class DataHandler:
-    """Utility class for processing dictionary data with validation."""
+    """Handles data processing and lifecycle management."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {}
+        self.is_active = True
 
-    def process_payload(self, payload: Dict[str, Any], callback: Optional[Callable[[Any], Any]] = None) -> Dict[str, Any]:
-        """
-        Processes input payload and executes an optional callback.
+    def process_payload(self, data: Any) -> Optional[Dict[str, Any]]:
+        """Validates and transforms raw input data."""
+        if not self.is_active:
+            logger.warning("Handler inactive; skipping processing")
+            return None
 
-        Args:
-            payload: The dictionary to be processed.
-            callback: A transformation function to apply to values.
+        try:
+            result = {"status": "success", "data": data}
+            return result
+        except Exception as e:
+            logger.error(f"Processing failed: {e}")
+            return {"status": "error", "message": str(e)}
 
-        Returns:
-            Processed dictionary with updated values.
-        """
-        processed: Dict[str, Any] = {}
-        for key, value in payload.items():
-            if callback:
-                processed[key] = callback(value)
-            else:
-                processed[key] = value
-        return processed
+    def shutdown(self) -> None:
+        """Graceful cleanup of handler resources."""
+        self.is_active = False
+        logger.info("Handler resources released")
 
-    def validate_keys(self, payload: Dict[str, Any], required_keys: list[str]) -> bool:
-        """
-        Checks if all required keys exist in the payload.
-
-        Args:
-            payload: The dictionary to inspect.
-            required_keys: A list of keys that must be present.
-
-        Returns:
-            True if all keys are found, False otherwise.
-        """
-        return all(key in payload for key in required_keys)
+def initialize_handler(settings: Dict[str, Any]) -> DataHandler:
+    """Factory function for handler instantiation."""
+    return DataHandler(config=settings)
