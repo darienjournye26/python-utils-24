@@ -1,39 +1,38 @@
-import logging
-from typing import Any, Callable, Optional, TypeVar, T
+from typing import Any, Iterable, Optional, Dict
 
-logger = logging.getLogger(__name__)
+def chunk_list(data: Iterable[Any], size: int) -> Iterable[list[Any]]:
+    """Split an iterable into chunks of a specified size."""
+    if size <= 0:
+        raise ValueError("Chunk size must be a positive integer.")
+    
+    chunk = []
+    for item in data:
+        chunk.append(item)
+        if len(chunk) == size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
 
-def safe_execute(func: Callable[..., T], *args: Any, default: Optional[T] = None, **kwargs: Any) -> Optional[T]:
-    """
-    Executes a callable with error catching for edge cases.
-    Logs errors and returns a default value on failure.
-    """
-    try:
-        return func(*args, **kwargs)
-    except (ValueError, TypeError, AttributeError, KeyError) as e:
-        logger.error(f"Execution error in {func.__name__}: {e}")
-        return default
-    except Exception as e:
-        logger.critical(f"Unexpected runtime error: {e}")
-        raise
+def merge_dicts(*dicts: Dict[Any, Any]) -> Dict[Any, Any]:
+    """Merge multiple dictionaries into a single result dictionary."""
+    result: Dict[Any, Any] = {}
+    for dictionary in dicts:
+        result.update(dictionary)
+    return result
 
-def validate_input(value: Any, expected_type: type) -> bool:
-    """
-    Checks if input matches expected type and is not None.
-    Returns false for malformed edge cases.
-    """
-    if value is None:
-        return False
-    if not isinstance(value, expected_type):
-        return False
-    return True
+def format_string(template: str, context: Optional[Dict[str, Any]] = None) -> str:
+    """Safe string formatting using a provided context dictionary."""
+    if not context:
+        return template
+    return template.format(**context)
 
-def normalize_data(data: Any) -> Any:
-    """
-    Sanitizes inputs to prevent type errors in pipelines.
-    """
-    if isinstance(data, str):
-        return data.strip()
-    if isinstance(data, (int, float)):
-        return data
-    return None
+def get_nested(data: Dict[Any, Any], keys: Iterable[Any], default: Any = None) -> Any:
+    """Retrieve a value from a nested dictionary structure."""
+    current = data
+    for key in keys:
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        else:
+            return default
+    return current
