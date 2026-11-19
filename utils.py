@@ -1,34 +1,34 @@
 import time
 import functools
 import logging
+from typing import Callable, Any, Type
 
 logger = logging.getLogger(__name__)
 
-def retry_network_operation(max_attempts=3, backoff=2.0):
-    """Decorator to retry network operations with exponential backoff."""
-    def decorator(func):
+def retry_on_failure(
+    retries: int = 3, 
+    delay: float = 1.0, 
+    exceptions: tuple[Type[Exception], ...] = (ConnectionError, TimeoutError)
+) -> Callable:
+    """
+    Decorator for retrying network operations with exponential backoff.
+    """
+    def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            delay = 1.0
-            while attempts < max_attempts:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_exception = None
+            current_delay = delay
+            
+            for attempt in range(retries):
                 try:
                     return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    attempts += 1
-                    if attempts == max_attempts:
-                        logger.error(f"Failed after {max_attempts} attempts: {e}")
-                        raise
-                    
-                    logger.warning(f"Attempt {attempts} failed, retrying in {delay}s...")
-                    time.sleep(delay)
-                    delay *= backoff
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= 2
+            
+            logger.error(f"Operation failed after {retries} attempts.")
+            raise last_exception
         return wrapper
     return decorator
-
-@retry_network_operation(max_attempts=3, backoff=2.0)
-def fetch_data(url):
-    """Example network call wrapper."""
-    # Placeholder for actual socket or requests logic
-    logger.info(f"Fetching from {url}")
-    return True
