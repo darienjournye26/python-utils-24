@@ -1,38 +1,27 @@
-from typing import Any, Iterable, Optional, Dict
+import typing
+from typing import Any, Iterable, Dict, List
 
-def chunk_list(data: Iterable[Any], size: int) -> Iterable[list[Any]]:
-    """Split an iterable into chunks of a specified size."""
-    if size <= 0:
-        raise ValueError("Chunk size must be a positive integer.")
-    
-    chunk = []
-    for item in data:
-        chunk.append(item)
-        if len(chunk) == size:
-            yield chunk
-            chunk = []
-    if chunk:
-        yield chunk
-
-def merge_dicts(*dicts: Dict[Any, Any]) -> Dict[Any, Any]:
-    """Merge multiple dictionaries into a single result dictionary."""
-    result: Dict[Any, Any] = {}
-    for dictionary in dicts:
-        result.update(dictionary)
-    return result
-
-def format_string(template: str, context: Optional[Dict[str, Any]] = None) -> str:
-    """Safe string formatting using a provided context dictionary."""
-    if not context:
-        return template
-    return template.format(**context)
-
-def get_nested(data: Dict[Any, Any], keys: Iterable[Any], default: Any = None) -> Any:
-    """Retrieve a value from a nested dictionary structure."""
-    current = data
-    for key in keys:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
+def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """Flatten a nested dictionary using a separator."""
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
         else:
-            return default
-    return current
+            items.append((new_key, v))
+    return dict(items)
+
+def chunk_list(data: Iterable[Any], size: int) -> List[List[Any]]:
+    """Split an iterable into fixed-size chunks."""
+    data_list = list(data)
+    return [data_list[i : i + size] for i in range(0, len(data_list), size)]
+
+def safe_get(data: Dict[Any, Any], keys: Iterable[str], default: Any = None) -> Any:
+    """Access nested dictionary values safely."""
+    try:
+        for key in keys:
+            data = data[key]
+        return data
+    except (KeyError, TypeError):
+        return default
