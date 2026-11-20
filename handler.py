@@ -1,40 +1,29 @@
-import functools
-import time
-import logging
-from typing import Callable, Any, Dict
+import json
+from typing import Any, Optional, Dict
 
-# Configure logger for performance monitoring
-logger = logging.getLogger('python-utils-24.handler')
+def safe_load_json(file_path: str, default: Optional[Dict] = None) -> Dict:
+    """Reads and parses a JSON file with error handling."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, IOError):
+        return default if default is not None else {}
 
-# Cache to store expensive function results
-_memoization_cache: Dict[str, Any] = {}
+def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """Flattens nested dictionaries into a single level."""
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-def memoize_with_ttl(ttl_seconds: int = 300):
-    """Decorator for result caching with TTL expiry."""
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            key = f"{func.__name__}:{args}:{frozenset(kwargs.items())}"
-            now = time.time()
-            
-            if key in _memoization_cache:
-                result, timestamp = _memoization_cache[key]
-                if now - timestamp < ttl_seconds:
-                    return result
-            
-            result = func(*args, **kwargs)
-            _memoization_cache[key] = (result, now)
-            return result
-        return wrapper
-    return decorator
+def filter_by_keys(data: Dict[str, Any], keys: list) -> Dict[str, Any]:
+    """Returns a dictionary subset containing only specified keys."""
+    return {k: v for k, v in data.items() if k in keys}
 
-def batch_process(items: list, chunk_size: int = 100):
-    """Generator to yield chunks for efficient memory usage."""
-    for i in range(0, len(items), chunk_size):
-        yield items[i:i + chunk_size]
-
-@memoize_with_ttl(ttl_seconds=60)
-def compute_heavy_task(data_id: int):
-    """Simulated heavy computation core task."""
-    time.sleep(1)  # Simulate I/O or CPU latency
-    return f"Processed data for {data_id}"
+def sanitize_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Removes null values from a dictionary."""
+    return {k: v for k, v in data.items() if v is not None}
