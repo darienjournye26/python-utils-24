@@ -1,29 +1,27 @@
 import re
 from typing import Any, Optional
 
-def validate_email(email: str) -> bool:
-    """Verify email format using regex."""
+def is_valid_email(email: str) -> bool:
+    """Validates email string format using regex."""
+    if not email or not isinstance(email, str):
+        return False
     pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
     return bool(re.match(pattern, email))
 
-def ensure_list(data: Any) -> list:
-    """Convert input to a list if not already one."""
-    if data is None:
-        return []
-    if isinstance(data, list):
-        return data
-    return [data]
+def is_non_empty_string(value: Any) -> bool:
+    """Checks if value is a string and contains non-whitespace characters."""
+    return isinstance(value, str) and bool(value.strip())
 
-def sanitize_string(value: Optional[str], default: str = "") -> str:
-    """Strip whitespace and return default if empty."""
-    if not value or not isinstance(value, str):
-        return default
-    return value.strip()
+def is_positive_int(value: Any) -> bool:
+    """Checks if value is an integer greater than zero."""
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
 
-def is_non_empty_dict(data: Any) -> bool:
-    """Check if input is a non-empty dictionary."""
-    return isinstance(data, dict) and len(data) > 0
+def validate_range(value: int, min_val: int, max_val: int) -> bool:
+    """Checks if an integer falls within a specific inclusive range."""
+    return isinstance(value, int) and min_val <= value <= max_val
 
-def safe_get(data: dict, key: str, default: Any = None) -> Any:
-    """Retrieve value from dict with fallback."""
-    return data.get(key, default) if isinstance(data, dict) else default
+def clean_input(value: Any) -> Optional[str]:
+    """Returns stripped string or None if input is invalid."""
+    if isinstance(value, str):
+        return value.strip() if value.strip() else None
+    return None
