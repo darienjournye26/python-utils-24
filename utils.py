@@ -1,34 +1,34 @@
 import time
 import functools
 import logging
-from typing import Callable, Any, Type
 
 logger = logging.getLogger(__name__)
 
-def retry_on_failure(
-    retries: int = 3, 
-    delay: float = 1.0, 
-    exceptions: tuple[Type[Exception], ...] = (ConnectionError, TimeoutError)
-) -> Callable:
-    """
-    Decorator for retrying network operations with exponential backoff.
-    """
-    def decorator(func: Callable) -> Callable:
+def retry(max_attempts=3, delay=1, exceptions=(Exception,)): 
+    """Decorator for retrying network operations with exponential backoff."""
+    def decorator(func):
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception = None
+        def wrapper(*args, **kwargs):
+            attempts = 0
             current_delay = delay
-            
-            for attempt in range(retries):
+            while attempts < max_attempts:
                 try:
                     return func(*args, **kwargs)
                 except exceptions as e:
-                    last_exception = e
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        logger.error(f"Failed after {max_attempts} attempts: {e}")
+                        raise
+                    
+                    logger.warning(f"Attempt {attempts} failed, retrying in {current_delay}s...")
                     time.sleep(current_delay)
                     current_delay *= 2
-            
-            logger.error(f"Operation failed after {retries} attempts.")
-            raise last_exception
+            return None
         return wrapper
     return decorator
+
+@retry(max_attempts=3, delay=2)
+def fetch_data(url):
+    """Example network operation function."""
+    # Placeholder for requests.get logic
+    raise ConnectionError("Network unreachable")
