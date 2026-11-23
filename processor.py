@@ -1,33 +1,30 @@
 import logging
 
-# Configure logger for module tracking
 logger = logging.getLogger(__name__)
 
 def validate_input(data):
     """Ensures input is a non-empty dictionary."""
     if not isinstance(data, dict):
-        return False
+        raise ValueError(f"Expected dict, got {type(data).__name__}")
     if not data:
-        return False
+        raise ValueError("Empty input data received")
     return True
 
-def process_main_loop(items):
-    """Main processing loop with data validation."""
-    for index, item in enumerate(items):
+def process_stream(data_stream):
+    """Main processing loop with input validation."""
+    results = []
+    for entry in data_stream:
         try:
-            # Validate current iteration input
-            if not validate_input(item):
-                logger.warning(f"Skipping invalid input at index {index}")
-                continue
-            
-            # Execute primary business logic
-            result = item.get("value", 0) * 2
-            logger.info(f"Processed item {index}: result {result}")
-            
-        except Exception as e:
-            logger.error(f"Unexpected error processing item {index}: {e}")
+            if validate_input(entry):
+                # Simulate data transformation
+                processed = {k: str(v).strip() for k, v in entry.items()}
+                results.append(processed)
+        except (ValueError, TypeError) as e:
+            logger.error(f"Skipping invalid entry: {e}")
+            continue
+    return results
 
-if __name__ == '__main__':
-    # Example payload execution
-    sample_data = [{"value": 10}, {}, "invalid_type", {"value": 20}]
-    process_main_loop(sample_data)
+if __name__ == "__main__":
+    sample_data = [{"id": 1, "val": "  test  "}, {}, "invalid", {"id": 2, "val": "data"}]
+    output = process_stream(sample_data)
+    print(f"Processed {len(output)} records.")
