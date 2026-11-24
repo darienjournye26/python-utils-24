@@ -1,30 +1,37 @@
 import logging
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-def validate_input(data):
-    """Ensures input is a non-empty dictionary."""
-    if not isinstance(data, dict):
-        raise ValueError(f"Expected dict, got {type(data).__name__}")
-    if not data:
-        raise ValueError("Empty input data received")
-    return True
+class DataProcessor:
+    """Handles data transformation with robust error recovery."""
 
-def process_stream(data_stream):
-    """Main processing loop with input validation."""
-    results = []
-    for entry in data_stream:
+    def process_item(self, item: Any) -> Optional[dict]:
         try:
-            if validate_input(entry):
-                # Simulate data transformation
-                processed = {k: str(v).strip() for k, v in entry.items()}
-                results.append(processed)
-        except (ValueError, TypeError) as e:
-            logger.error(f"Skipping invalid entry: {e}")
-            continue
-    return results
+            if not isinstance(item, dict):
+                raise ValueError(f"Expected dict, got {type(item).__name__}")
+            
+            # Simulate processing logic
+            result = {"id": item.get("id"), "status": "processed"}
+            if "value" not in item:
+                raise KeyError("Missing mandatory key: value")
+                
+            return result
 
-if __name__ == "__main__":
-    sample_data = [{"id": 1, "val": "  test  "}, {}, "invalid", {"id": 2, "val": "data"}]
-    output = process_stream(sample_data)
-    print(f"Processed {len(output)} records.")
+        except ValueError as ve:
+            logger.error(f"Validation error: {ve}")
+            return None
+        except KeyError as ke:
+            logger.error(f"Schema error: {ke}")
+            return None
+        except Exception as e:
+            logger.critical(f"Unexpected system failure: {e}")
+            return None
+
+    def batch_process(self, data_list: list) -> list:
+        """Processes a list of items, skipping malformed entries."""
+        if not isinstance(data_list, list):
+            logger.warning("Invalid input type: expected list")
+            return []
+            
+        return [res for item in data_list if (res := self.process_item(item)) is not None]
