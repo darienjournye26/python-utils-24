@@ -1,27 +1,52 @@
-import re
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
-def is_valid_email(email: str) -> bool:
-    """Validates email string format using regex."""
-    if not email or not isinstance(email, str):
-        return False
-    pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-    return bool(re.match(pattern, email))
+def validate_email(email: str) -> bool:
+    """
+    Validates the format of an email address.
 
-def is_non_empty_string(value: Any) -> bool:
-    """Checks if value is a string and contains non-whitespace characters."""
-    return isinstance(value, str) and bool(value.strip())
+    Args:
+        email: The email string to validate.
 
-def is_positive_int(value: Any) -> bool:
-    """Checks if value is an integer greater than zero."""
-    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+    Returns:
+        True if the email contains an @ symbol and a period, False otherwise.
+    """
+    return bool(email and '@' in email and '.' in email.split('@')[-1])
 
-def validate_range(value: int, min_val: int, max_val: int) -> bool:
-    """Checks if an integer falls within a specific inclusive range."""
-    return isinstance(value, int) and min_val <= value <= max_val
+def validate_range(value: Union[int, float], min_val: float, max_val: float) -> bool:
+    """
+    Checks if a number falls within a specific range inclusive.
 
-def clean_input(value: Any) -> Optional[str]:
-    """Returns stripped string or None if input is invalid."""
-    if isinstance(value, str):
-        return value.strip() if value.strip() else None
-    return None
+    Args:
+        value: The number to check.
+        min_val: The inclusive lower bound.
+        max_val: The inclusive upper bound.
+
+    Returns:
+        True if within range, False otherwise.
+    """
+    return min_val <= value <= max_val
+
+def validate_not_empty(data: Optional[str]) -> bool:
+    """
+    Checks if a string is neither None nor empty.
+
+    Args:
+        data: The string to validate.
+
+    Returns:
+        True if string contains characters, False otherwise.
+    """
+    return isinstance(data, str) and len(data.strip()) > 0
+
+def validate_type(obj: Any, expected_type: type) -> bool:
+    """
+    Verifies that an object is an instance of a specific type.
+
+    Args:
+        obj: The object to inspect.
+        expected_type: The type class to check against.
+
+    Returns:
+        True if match, False otherwise.
+    """
+    return isinstance(obj, expected_type)
