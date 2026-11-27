@@ -1,39 +1,33 @@
-import functools
-import itertools
-from typing import Any, Callable, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
 
+def deep_flatten(items: List[Any], separator: str = '.') -> Dict[str, Any]:
+    """Flattens a nested dictionary into a single-level dictionary."""
+    items_flat = {}
 
-class FastBatchProcessor:
-    """Optimized batch processor utilizing slots and iterator slice evaluation."""
+    def _recurse(current: Any, prefix: str = '') -> None:
+        if isinstance(current, dict):
+            for key, value in current.items():
+                new_key = f"{prefix}{separator}{key}" if prefix else key
+                _recurse(value, new_key)
+        elif isinstance(current, list):
+            for i, value in enumerate(current):
+                _recurse(value, f"{prefix}{separator}{i}")
+        else:
+            items_flat[prefix] = current
 
-    __slots__ = ("batch_size", "_transform")
+    _recurse(items)
+    return items_flat
 
-    def __init__(
-        self, batch_size: int = 1000, transform: Optional[Callable[[Any], Any]] = None
-    ) -> None:
-        if batch_size <= 0:
-            raise ValueError("batch_size must be a positive integer")
-        self.batch_size = batch_size
-        self._transform = transform
+def sanitize_data(data: Dict[str, Any], keys_to_mask: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Removes sensitive keys from a dictionary based on a provided list."""
+    if not keys_to_mask:
+        return data
 
-    def process_stream(self, iterable: Iterable[Any]) -> Iterable[List[Any]]:
-        """Yield batches of processed items without loading full dataset into memory."""
-        iterator = iter(iterable)
-        transform_fn = self._transform
-        
-        while True:
-            batch = list(itertools.islice(iterator, self.batch_size))
-            if not batch:
-                break
-            if transform_fn is not None:
-                yield [transform_fn(item) for item in batch]
-            else:
-                yield batch
+    return {k: ('***' if k in keys_to_mask else v) for k, v in data.items()}
 
-
-@functools.lru_cache(maxsize=2048)
-def memoized_evaluation(key: str, value: Any) -> Any:
-    """Fast lookup wrapper for costly repetitive transformation tasks."""
-    if isinstance(value, (int, float)):
-        return value * 2 - (value % 3)
-    return hash((key, str(value)))
+def batch_process(data: List[Any], batch_size: int) -> List[List[Any]]:
+    """Chunks a list into smaller sub-lists of a specified size."""
+    if batch_size <= 0:
+        raise ValueError("batch_size must be a positive integer")
+    
+    return [data[i : i + batch_size] for i in range(0, len(data), batch_size)]
