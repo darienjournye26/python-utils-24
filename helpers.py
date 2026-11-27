@@ -1,27 +1,32 @@
-import typing
-from typing import Any, Iterable, Dict, List
+import functools
+import time
+from typing import Callable, Any, Dict
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """Flatten a nested dictionary using a separator."""
-    items = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+# Cache dictionary for memoization of expensive calls
+_LRU_CACHE: Dict[str, Any] = {}
 
-def chunk_list(data: Iterable[Any], size: int) -> List[List[Any]]:
-    """Split an iterable into fixed-size chunks."""
-    data_list = list(data)
-    return [data_list[i : i + size] for i in range(0, len(data_list), size)]
+def memoize(func: Callable) -> Callable:
+    """Decorator for caching function results to improve speed."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        key = f"{func.__name__}:{args}:{frozenset(kwargs.items())}"
+        if key not in _LRU_CACHE:
+            _LRU_CACHE[key] = func(*args, **kwargs)
+        return _LRU_CACHE[key]
+    return wrapper
 
-def safe_get(data: Dict[Any, Any], keys: Iterable[str], default: Any = None) -> Any:
-    """Access nested dictionary values safely."""
-    try:
-        for key in keys:
-            data = data[key]
-        return data
-    except (KeyError, TypeError):
-        return default
+def batch_process(items: list, chunk_size: int = 100):
+    """Generator for memory-efficient batch processing of lists."""
+    for i in range(0, len(items), chunk_size):
+        yield items[i:i + chunk_size]
+
+def timed_execution(func: Callable) -> Callable:
+    """Decorator to measure execution time for performance tuning."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        end = time.perf_counter()
+        print(f"Function {func.__name__} took {end - start:.4f}s")
+        return result
+    return wrapper
